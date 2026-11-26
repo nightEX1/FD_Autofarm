@@ -71,7 +71,8 @@ local SCRIPT_URL   = "https://raw.githubusercontent.com/nightEX1/FD_Autofarm/mai
 local SCRIPT_FILE  = "DKHUB_Autofarm1.lua"      -- ไฟล์ในโฟลเดอร์ workspace ของ executor
 local AUTO_REJOIN  = true                   -- หลุด/ถูกเตะ -> เข้าเกมใหม่เองแล้วรันสคริปต์ต่อ
 
-local LOOP_DELAY = 0.5
+local LOOP_DELAY = 0.2                 -- วนประเมินเร็วขึ้นระหว่างด่าน
+local PLACE_CONFIRM_TIMEOUT = 1.25     -- ไม่รอ 3 วินาทีทุกครั้ง ถ้า server ไม่สร้างตัวใหม่ให้ไป action อื่น
 
 -- ออโต้ข้ามเวฟ: ชื่อ Remote โหวตข้ามเวฟไม่มีในไฟล์ต้นฉบับ -> ใส่เองได้ ถ้าเว้นว่างจะค้นหาชื่อที่มีคำว่า "skip"
 local SKIP_REMOTE   = nil               -- [แก้ตรงนี้] เช่น "vote_wave_skip" ถ้ารู้ชื่อจริง
@@ -1584,7 +1585,8 @@ local ECON = {
     GUARD_MIN     = 2,    -- ต้องมีตัวดาเมจอย่างน้อยกี่ตัวครอบคลุมช่วงก่อนฐาน
     GUARD_FROM    = 0.75, -- "ช่วงก่อนฐาน" เริ่มที่ความคืบหน้าของถนนเท่าไร
     BOSS_MAX      = 2,    -- เวฟสุดท้ายเหลือศัตรูไม่เกินกี่ตัว ถือเป็นโหมดตามบอส
-    SPOT_BUDGET   = 3,    -- หาจุดวางใหม่ได้กี่ตัวต่อรอบ (หาจุดหนัก) ที่เหลือใช้แคช/รอบหน้า
+    SPOT_BUDGET   = 12,   -- เพิ่มจำนวน candidate ที่ตรวจต่อรอบ ลดเวลาค้างตอนเติมสนาม
+    FILL_TARGET    = 12,  -- ช่วงต้นเกมให้เร่งวางจนมี core ประมาณนี้ก่อนค่อยแข่งกับอัปเกรด
 }
 
 local Economy = { rate = 0 }
@@ -1776,7 +1778,7 @@ function Match.place(unit, reason, ctx)
     if ok and res then
         -- รอให้ยูนิตขึ้นในสนามจริง ก่อนประเมินรอบถัดไป (กันคำสั่งซ้ำ/เงินยังไม่ถูกหัก)
         local t0 = os.clock()
-        while os.clock() - t0 < 3 and alive() do
+        while os.clock() - t0 < PLACE_CONFIRM_TIMEOUT and alive() do
             if unitCountByUuid(unit.uuid) > beforeCount then break end
             task.wait(0.15)
         end
@@ -1943,7 +1945,14 @@ function Economy.options(ctx)
     end
     for _, o in ipairs(opts) do
         o.value = (o.value or 0) * prioMul(o.unit.id, o.data)
-        if o.kind == "place" and ctx.leak and not isFarm(o.unit.id) then o.value *= 2 end -- มีตัวหลุด: วางตัวใหม่ขวางหน้าก่อนอัปเกรด
+        if o.kind == "place" then
+            -- ช่วงต้นด่านต้องเติมสำเนาลงสนามก่อน ไม่ปล่อยให้อัปเกรดตัวเดียวจนแพ้
+            if #ctx.mine < ECON.FILL_TARGET then
+                local missing = (ECON.FILL_TARGET - #ctx.mine) / ECON.FILL_TARGET
+                o.value *= 2.2 + missing * 1.8
+            end
+            if ctx.leak and not isFarm(o.unit.id) then o.value *= 2 end -- มีตัวหลุด: วางตัวใหม่ขวางหน้าก่อนอัปเกรด
+        end
         if o.kind == "place" and o.value <= 0 then o.value = 1e-6 end -- กันค้าง: ยังไงก็ให้วางตัวที่เหลือได้เมื่อไม่มีอะไรดีกว่า
     end
 
