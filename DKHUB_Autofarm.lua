@@ -1199,12 +1199,16 @@ end
 
 local function placeUnits(noWait)
     if not prepareMatch() then say("ยังหาเส้นทางไม่เจอ") return end
-    say("วางตัวละคร")
+    say("กำลังวางยูนิตให้ครบทีม")
     local placed = {}
-    for _, u in ipairs(myUnits()) do
-        local st = u:FindFirstChild("_stats")
-        if st and st:FindFirstChild("uuid") then placed[st.uuid.Value] = true end
+    local function refreshPlaced()
+        for _, u in ipairs(myUnits()) do
+            local st = u:FindFirstChild("_stats")
+            if st and st:FindFirstChild("uuid") then placed[st.uuid.Value] = true end
+        end
     end
+    refreshPlaced()
+
     local order = equippedUnits()
     if FARM_FIRST then
         table.sort(order, function(a, b)
@@ -1213,30 +1217,64 @@ local function placeUnits(noWait)
             return a.slot < b.slot
         end)
     end
-    for _, unit in ipairs(order) do
+
+    local total, done = #order, 0
+    for index, unit in ipairs(order) do
         if not alive() then return end
+        refreshPlaced()
         if not placed[unit.uuid] then
             local cost = tonumber(unit.data.cost) or 0
             local tries = 0
-            while not noWait and alive() and money() < cost and tries < 120 and not Workspace._DATA.GameFinished.Value do
-                tries += 1 task.wait(0.5) -- รอเงินพอ (ยูนิตตัวต่อไปค่อยวางทีหลัง)
+            -- รอบตรวจซ้ำก็ต้องรอเงินเหมือนรอบแรก ไม่เช่นนั้นจะข้ามยูนิตที่ยังซื้อไม่ได้
+            while alive() and money() < cost and tries < 180 and not Workspace._DATA.GameFinished.Value do
+                tries += 1
+                task.wait(0.5)
             end
-            if money() >= cost then
-                for attempt = 1, 3 do -- จุดโดนเซิร์ฟเวอร์ปฏิเสธ -> หาจุดใหม่ ลองสูงสุด 3 ครั้ง
-                    if not alive() then return end
+            if alive() and money() >= cost and not Workspace._DATA.GameFinished.Value then
+                local success = false
+                for attempt = 1, 8 do
+                    if not alive() or Workspace._DATA.GameFinished.Value then break end
                     local pos, score = bestSpot(unit, myUnits())
-                    if not pos then break end
-                    local ok, res = fire(R.spawnUnit, unit.uuid, Game.Util.CFramePLV(pos, lookAt(pos)))
-                    if ok and res then
-                        placed[unit.uuid] = true
-                        print(string.format("[FD] วาง %s ที่ %s (คะแนน %.1f)", tostring(unit.id), spotKey(pos), score or 0))
-                        break
+                    if not pos then
+                        task.wait(0.5)
+                    else
+                        local ok, res = fire(R.spawnUnit, unit.uuid, Game.Util.CFramePLV(pos, lookAt(pos)))
+                        if ok and res then
+                            -- รอ replication ของเซิร์ฟเวอร์ก่อนวางตัวถัดไป ป้องกันยิงคำสั่งติดกันจนหลุด
+                            local t0 = os.clock()
+                            while os.clock() - t0 < 5 and alive() do
+                                refreshPlaced()
+                                if placed[unit.uuid] then break end
+                                task.wait(0.15)
+                            end
+                            if placed[unit.uuid] then
+                                success = true
+                                done += 1
+                                print(string.format("[FD] วาง %d/%d: %s ที่ %s (คะแนน %.1f)", done, total, tostring(unit.id), spotKey(pos), score or 0))
+                                break
+                            end
+                        end
+                        Place.refused[spotKey(pos)] = true
+                        task.wait(0.35)
                     end
-                    Place.refused[spotKey(pos)] = true -- จำจุดที่เซิร์ฟเวอร์ปฏิเสธ
+                end
+                if not success then
+                    warn("[FD] ยังวางไม่ได้: " .. tostring(unit.id) .. " (uuid " .. tostring(unit.uuid) .. ")")
                 end
             end
-            task.wait(0.4)
+        else
+            done += 1
         end
+        -- เว้นจังหวะให้ระบบเกมอัปเดตจำนวนยูนิตและเงินก่อนคำสั่งถัดไป
+        task.wait(0.8)
+    end
+    refreshPlaced()
+    local remaining = 0
+    for _, unit in ipairs(order) do if not placed[unit.uuid] then remaining += 1 end end
+    if remaining == 0 then
+        say(string.format("วางยูนิตครบ %d/%d", total, total))
+    else
+        say(string.format("วางแล้ว %d/%d เหลือ %d ตัว จะลองซ้ำ", total - remaining, total, remaining))
     end
 end
 
