@@ -410,6 +410,19 @@ local function createMainUI(onToggle)
     Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
     local scale = Instance.new("UIScale", main)
 
+    -- Responsive: ย่อทั้ง UI ให้พอดีกับจอมือถือ/จอเล็ก โดยคงอัตราส่วน 16:9
+    local minimized = false
+    local function fitToScreen()
+        local camera = Workspace.CurrentCamera
+        if not camera then return 1 end
+        local viewport = camera.ViewportSize
+        local target = math.min(1, math.max(0.35, (viewport.X - 20) / 640), math.max(0.35, (viewport.Y - 20) / 360))
+        if not minimized then scale.Scale = target end
+        return target
+    end
+    local camera = Workspace.CurrentCamera
+    if camera then camera:GetPropertyChangedSignal("ViewportSize"):Connect(fitToScreen) end
+
     local top = Instance.new("Frame", main)
     top.Size, top.BackgroundColor3 = UDim2.new(1, 0, 0, 32), Color3.fromRGB(22, 0, 0)
     local title = Instance.new("TextLabel", top)
@@ -533,10 +546,10 @@ local function createMainUI(onToggle)
         end)
     end
 
-    local minimized = false
     minBtn.MouseButton1Click:Connect(function()
         minimized = not minimized
         tween(main, 0.25, { Size = minimized and UDim2.fromOffset(640, 32) or UDim2.fromOffset(640, 360) })
+        if not minimized then fitToScreen() end
     end)
     closeBtn.MouseButton1Click:Connect(function()
         onToggle(false)
@@ -560,8 +573,9 @@ local function createMainUI(onToggle)
         end
     end)
 
-    scale.Scale, main.BackgroundTransparency = 0.6, 1
-    tween(scale, 0.45, { Scale = 1 }, Enum.EasingStyle.Back)
+    local targetScale = fitToScreen()
+    scale.Scale, main.BackgroundTransparency = targetScale * 0.6, 1
+    tween(scale, 0.45, { Scale = targetScale }, Enum.EasingStyle.Back)
     tween(main, 0.45, { BackgroundTransparency = 0 })
     return setOn
 end
