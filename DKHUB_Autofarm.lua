@@ -1259,17 +1259,8 @@ local function placeUnits(noWait, limit)
         if not alive() then return end
         refreshPlaced()
         if not placed[unit.uuid] then
-            local currentTier = unitPlacementTier(unit.id, unit.data)
-            local higherWaiting = false
-            for _, other in ipairs(order) do
-                if not placed[other.uuid] and unitPlacementTier(other.id, other.data) > currentTier then
-                    higherWaiting = true
-                    break
-                end
-            end
-            if higherWaiting then
-                continue
-            end
+            -- เรียงลำดับให้ตัวสำคัญมาก่อน แต่ไม่ล็อกตัวอื่นถ้าจุดของตัวก่อนหน้าถูกปฏิเสธ
+            -- เพื่อไม่ให้ระบบค้างอยู่ที่ 1/6 และให้วางยูนิตที่เหลือต่อได้
             local cost = tonumber(unit.data.cost) or 0
             local tries = 0
             -- รอบตรวจซ้ำก็ต้องรอเงินเหมือนรอบแรก ไม่เช่นนั้นจะข้ามยูนิตที่ยังซื้อไม่ได้
@@ -1526,16 +1517,16 @@ local function mainLoop()
                 end
                 if matchStarted() and not matchFinished() then
                     -- วางทีละตัวตามลำดับ rarity แล้วอัปเกรดทันทีในรอบเดียวกัน
-                    placeUnits(true, 1)
+                    placeUnits(true, 2)
                     local lastRecheck = os.clock()
                     while alive() and not matchFinished() do
                         if not autoSkipOn() then voteSkip() end -- ถ้าเกมไม่ได้เปิด autoskip ให้โหวตเอง
-                        placeUnits(true, 1)
+                        placeUnits(true, 2)
                         autoPlay()
                         -- ทุก 8 วิ: ยูนิตที่ยังไม่ได้วาง (เงินไม่พอ/จุดโดนปฏิเสธ) ลองวางใหม่ ยกเว้นเวฟสุดท้าย (ฟาร์มโดนขาย)
                         if os.clock() - lastRecheck > 8 then
                             lastRecheck = os.clock()
-                            if wave() < totalWaves() and hasUnplaced() then placeUnits(true, 1) end
+                            if wave() < totalWaves() and hasUnplaced() then placeUnits(true, 2) end
                         end
                         task.wait(LOOP_DELAY)
                     end
