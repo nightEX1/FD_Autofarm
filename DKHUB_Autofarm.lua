@@ -119,12 +119,6 @@ local function tween(obj, t, props, style, dir)
     return tw
 end
 
-local function redStroke(obj, th)
-    local st = Instance.new("UIStroke")
-    st.Color, st.Thickness, st.ApplyStrokeMode = RED, th or 2, Enum.ApplyStrokeMode.Border
-    st.Parent = obj
-    return st
-end
 
 -- โลโก้: ถ้า ID ที่ให้มาเป็น Decal จะดึงรูปจริงออกมาให้ (ไม่งั้นรูปไม่ขึ้น) ถ้าเป็นรูปอยู่แล้วก็ใช้ตรงๆ
 local LOGO = IMAGE_ID
@@ -358,7 +352,6 @@ local function createLoading()
     box.AnchorPoint, box.Position, box.Size = Vector2.new(.5, .5), UDim2.fromScale(.5, .5), UDim2.fromOffset(320, 260)
     box.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     Instance.new("UICorner", box).CornerRadius = UDim.new(0, 14)
-    redStroke(box, 2)
 
     local icon = Instance.new("ImageLabel", box)
     icon.AnchorPoint, icon.Position, icon.Size = Vector2.new(.5, 0), UDim2.new(.5, 0, 0, 30), UDim2.fromOffset(90, 90)
