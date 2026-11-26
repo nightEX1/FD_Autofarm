@@ -1517,16 +1517,16 @@ local function mainLoop()
                 end
                 if matchStarted() and not matchFinished() then
                     -- วางทีละตัวตามลำดับ rarity แล้วอัปเกรดทันทีในรอบเดียวกัน
-                    placeUnits(true, 2)
+                    placeUnits(true)
                     local lastRecheck = os.clock()
                     while alive() and not matchFinished() do
                         if not autoSkipOn() then voteSkip() end -- ถ้าเกมไม่ได้เปิด autoskip ให้โหวตเอง
-                        placeUnits(true, 2)
+                        placeUnits(true)
                         autoPlay()
                         -- ทุก 8 วิ: ยูนิตที่ยังไม่ได้วาง (เงินไม่พอ/จุดโดนปฏิเสธ) ลองวางใหม่ ยกเว้นเวฟสุดท้าย (ฟาร์มโดนขาย)
                         if os.clock() - lastRecheck > 8 then
                             lastRecheck = os.clock()
-                            if wave() < totalWaves() and hasUnplaced() then placeUnits(true, 2) end
+                            if wave() < totalWaves() and hasUnplaced() then placeUnits(true) end
                         end
                         task.wait(LOOP_DELAY)
                     end
