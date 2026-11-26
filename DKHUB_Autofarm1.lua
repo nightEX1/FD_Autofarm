@@ -63,6 +63,7 @@ local MYSTIC_STOP_AT = 2                  -- ปรับได้จาก UI
 local BEST_TEAM        = true
 local TEAM_SIZE        = 6                  -- [แก้ตรงนี้] จำนวนช่องทีม
 local TEAM_FARM_SLOTS  = 1                  -- เลือก Bulby หรือ CEO เพียง 1 ตัว
+local FIELD_MAX        = 20                 -- จำนวนยูนิตบนสนามสูงสุด ไม่ใช่จำนวนช่องทีม
 
 -- รันสคริปต์ซ้ำเองหลังเกมวาร์ป/รีจอยน์ (ต้องใช้ executor ที่มี queue_on_teleport)
 -- ใส่อย่างใดอย่างหนึ่ง: SCRIPT_URL (ลิงก์ raw ของสคริปต์นี้) หรือเซฟไฟล์นี้ไว้ใน workspace ชื่อ SCRIPT_FILE
@@ -1216,6 +1217,23 @@ local function myUnits()
     return out
 end
 
+-- src แยก "ยูนิตในทีม" ออกจาก "จำนวนสำเนาที่วางบนสนาม" ด้วย Match.count(uuid)
+local function unitCountByUuid(uuid, mine)
+    local n = 0
+    for _, u in ipairs(mine or myUnits()) do
+        local st = u:FindFirstChild("_stats")
+        local uu = st and st:FindFirstChild("uuid")
+        if uu and uu.Value == uuid then n += 1 end
+    end
+    return n
+end
+
+local function unitSpawnCap(data)
+    -- spawn_cap คือชื่อเดียวกับ Units.field(id, "spawn_cap") ใน src
+    local cap = tonumber(data and (data.spawn_cap or data.max_placement or data.placement_cap or data.cap))
+    return math.max(1, math.floor(cap or FIELD_MAX))
+end
+
 -- ตรวจว่าจุดวางได้ (Match.valid): raycast ลงพื้น + PlacementCore + ไม่ทับถนน/ยูนิตอื่น
 local function validSpot(p, unitData, mine)
     local hit = Game.PC.raycast(p + Vector3.new(0, 40, 0), Vector3.new(0, -120, 0))
@@ -1657,10 +1675,14 @@ function Economy.snapshot()
     local w = wave()
     local mine = myUnits()
     local byUuid = {}
+    local countsByUuid = {}
     for _, u in ipairs(mine) do
         local st = u:FindFirstChild("_stats")
         local uu = st and st:FindFirstChild("uuid")
-        if uu then byUuid[uu.Value] = u end
+        if uu then
+            byUuid[uu.Value] = byUuid[uu.Value] or u
+            countsByUuid[uu.Value] = (countsByUuid[uu.Value] or 0) + 1
+        end
     end
     local em = enemyModel()
     -- ความกดดัน: ความคืบหน้าด่าน + จำนวนศัตรู + ศัตรูที่ใกล้ถึงปลายทาง + ตำแหน่งหัวแถว
@@ -1672,7 +1694,7 @@ function Economy.snapshot()
         + (em.count > 0 and em.front * 0.3 or 0),
         0, 1.5)
 
-    -- สนามเต็ม: ถึง TEAM_SIZE หรือเกมปฏิเสธการวางต่อเนื่องที่จำนวนนี้ (เรียนรู้เพดานเอง)
+    -- สนามเต็ม: ถึง FIELD_MAX หรือเกมปฏิเสธต่อเนื่องเมื่อถึงเพดานจริง (เรียนรู้เพดานเอง)
     if Place.cap and (#mine < Place.cap or now - (Place.capAt or 0) > 60) then
         Place.cap, Place.failStreak = nil, 0
     end
@@ -1731,23 +1753,16 @@ function Economy.snapshot()
         reach = reach, guards = guards, deepen = deepen, leak = leak, guardNeed = guardNeed, boss = boss, danger = danger,
         wmul = wmul, mode = mode, layout = layout,
         mine = mine, byUuid = byUuid, cov = cov, dens = em.dens,
-        fieldFull = #mine >= TEAM_SIZE or (Place.cap ~= nil and #mine >= Place.cap),
+        fieldFull = #mine >= FIELD_MAX or (Place.cap ~= nil and #mine >= Place.cap),
+        countsByUuid = countsByUuid,
         spotBudget = ECON.SPOT_BUDGET, incomplete = false,
     }
 end
 
 -- ===== Match.place: หาจุดที่ดีที่สุดก่อน แล้วค่อยเรียก spawn_unit =====
-local function placedInstance(uuid)
-    for _, u in ipairs(myUnits()) do
-        local st = u:FindFirstChild("_stats")
-        local uu = st and st:FindFirstChild("uuid")
-        if uu and uu.Value == uuid then return u end
-    end
-    return nil
-end
-
 function Match.place(unit, reason, ctx)
     local mine = ctx and ctx.mine or myUnits()
+    local beforeCount = unitCountByUuid(unit.uuid, mine)
     local pos, score = Match.bestSpot(unit, mine, ctx)
     if not pos then
         local ns = Place.noSpot[unit.uuid] or { n = 0, t = 0 }
@@ -1762,10 +1777,10 @@ function Match.place(unit, reason, ctx)
         -- รอให้ยูนิตขึ้นในสนามจริง ก่อนประเมินรอบถัดไป (กันคำสั่งซ้ำ/เงินยังไม่ถูกหัก)
         local t0 = os.clock()
         while os.clock() - t0 < 3 and alive() do
-            if placedInstance(unit.uuid) then break end
+            if unitCountByUuid(unit.uuid) > beforeCount then break end
             task.wait(0.15)
         end
-        if placedInstance(unit.uuid) then
+        if unitCountByUuid(unit.uuid) > beforeCount then
             Place.noSpot[unit.uuid], Place.placeFail[unit.uuid] = nil, 0
             local mk = RefusedStore[Place.mapKey or ""]
             if mk and mk[spotKey(pos)] then mk[spotKey(pos)] = nil saveRefused() end -- วางสำเร็จ = จุดนี้ใช้ได้ ลบออกจากรายการแบน
@@ -1789,8 +1804,8 @@ function Match.place(unit, reason, ctx)
     Place.spotCache[unit.uuid] = nil
     Place.placeFail[unit.uuid] = (Place.placeFail[unit.uuid] or 0) + 1
     Place.failStreak = (Place.failStreak or 0) + 1
-    if Place.failStreak >= 3 and #mine > 0 and money() >= (tonumber(unit.data.cost) or 0) then
-        Place.cap, Place.capAt = #mine, os.clock() -- ปฏิเสธต่อเนื่องทั้งที่เงินพอ -> ถือว่าสนามเต็ม
+    if Place.failStreak >= 3 and #mine >= FIELD_MAX and money() >= (tonumber(unit.data.cost) or 0) then
+        Place.cap, Place.capAt = FIELD_MAX, os.clock() -- ปฏิเสธต่อเนื่องเมื่อถึงเพดานสนามจริง
     end
     if Place.placeFail[unit.uuid] >= 3 then
         Place.noSpot[unit.uuid] = { n = 3, t = os.clock() }
@@ -1840,8 +1855,12 @@ function Economy.options(ctx)
                     end
                     opts[#opts + 1] = o
                 end)
-            elseif not Place.sold[unit.uuid] then
-                unplaced[#unplaced + 1] = { unit = unit, data = data }
+            end
+            -- การมี instance อยู่แล้วไม่ได้แปลว่ายูนิตนั้นวางครบจำนวนแล้ว
+            -- src ใช้ Match.count(uuid) และยังสร้าง action วางซ้ำจนถึง spawn_cap
+            local placedCount = ctx.countsByUuid[unit.uuid] or 0
+            if placedCount < unitSpawnCap(data) and not Place.sold[unit.uuid] then
+                unplaced[#unplaced + 1] = { unit = unit, data = data, placedCount = placedCount }
             end
         end
     end
