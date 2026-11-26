@@ -52,11 +52,11 @@ local R = {
 -- สุ่ม unit
 local BANNER        = "Standard"            -- [แก้ตรงนี้] "Standard" / "Special"
 local SUMMON_METHOD = "gems10"
-local GEM_THRESHOLD = 500
+local GEM_THRESHOLD = 500                -- ปรับได้จาก UI
 -- คำว่า "Mystic" ในสเปก: ในข้อมูลเกมระดับสูงสุดที่พบในต้นฉบับคือ "Mythic"  [แก้ตรงนี้ ถ้าเกมใช้ชื่ออื่น]
 local MYSTIC_RARITY = "Mythic"
 local MYSTIC_SLOT   = 6                  -- ตัวแรกสวมสล็อตนี้ ตัวถัดไปเลื่อนลงทีละช่อง (6, 5, ...)
-local MYSTIC_STOP_AT = 2                  -- ได้ครบกี่ตัวแล้วหยุดสุ่ม แล้วฟาร์มยาวๆ ต่อ
+local MYSTIC_STOP_AT = 2                  -- ปรับได้จาก UI
 
 -- จัดทีมที่ดีที่สุดให้เอง "ระหว่างที่ยังได้ Mythic ไม่ครบ" (จัดตอนอยู่ล็อบบี้)
 -- เรียงตามระดับความหายาก > ตัว evolved > ดาเมจต่อวินาทีที่อัปสุด > เลเวล (เป็นการประมาณ ไม่ใช่ tier list ของเกม)
@@ -91,6 +91,10 @@ local Workspace    = game:GetService("Workspace")
 local plr          = Players.LocalPlayer
 
 local State = { running = false, webhook = "", mystics = 0, startedAt = nil }
+local Notify = {
+    mystic = true, target = true, start = true,
+    win = true, team = true, error = true,
+}
 local gui, setStatus
 
 local function guiParent()
@@ -212,6 +216,35 @@ local function loadWebhook()
     end)
 end
 
+local SETTINGS_FILE = SAVE_FOLDER .. "/settings.json"
+local function saveSettings()
+    pcall(function()
+        if writefile then
+            if makefolder and isfolder and not isfolder(SAVE_FOLDER) then makefolder(SAVE_FOLDER) end
+            writefile(SETTINGS_FILE, HttpService:JSONEncode({
+                gemThreshold = GEM_THRESHOLD,
+                mysticStopAt = MYSTIC_STOP_AT,
+                notify = Notify,
+            }))
+        end
+    end)
+end
+
+local function loadSettings()
+    pcall(function()
+        if readfile and isfile and isfile(SETTINGS_FILE) then
+            local d = HttpService:JSONDecode(readfile(SETTINGS_FILE))
+            GEM_THRESHOLD = math.clamp(math.floor(tonumber(d.gemThreshold) or GEM_THRESHOLD), 0, 100000000)
+            MYSTIC_STOP_AT = math.clamp(math.floor(tonumber(d.mysticStopAt) or MYSTIC_STOP_AT), 1, 99)
+            if type(d.notify) == "table" then
+                for k, v in pairs(Notify) do
+                    if type(d.notify[k]) == "boolean" then Notify[k] = d.notify[k] end
+                end
+            end
+        end
+    end)
+end
+
 -- เก็บสถานะลงไฟล์ (นับ Mythic, เวลาเริ่มรัน, เปิดสวิตช์ค้างไว้) เพื่อให้ต่อได้หลังเกมวาร์ปแล้วสคริปต์โหลดใหม่
 -- ถ้าอยากเริ่มรอบใหม่ (นับ Mythic ใหม่) ให้ลบไฟล์ FD_Autofarm/state.json
 local STATE_FILE = SAVE_FOLDER .. "/state.json"
@@ -236,8 +269,8 @@ local function loadState()
 end
 local function mysticDone() return State.mystics >= MYSTIC_STOP_AT end
 
-local function sendWebhook(title, desc, color)
-    if State.webhook == "" then return end
+local function sendWebhook(kind, title, desc, color)
+    if State.webhook == "" or Notify[kind] == false then return end
     task.spawn(function()
         local req = (syn and syn.request) or http_request or request or (fluxus and fluxus.request)
         if not req then return end
@@ -369,7 +402,7 @@ local function createMainUI(onToggle)
 
     local main = Instance.new("Frame", gui)
     main.AnchorPoint, main.Position = Vector2.new(.5, .5), UDim2.fromScale(.5, .5)
-    main.Size, main.BackgroundColor3 = UDim2.fromOffset(300, 356), Color3.fromRGB(0, 0, 0)
+    main.Size, main.BackgroundColor3 = UDim2.fromOffset(340, 640), Color3.fromRGB(0, 0, 0)
     main.ClipsDescendants = true
     Instance.new("UICorner", main).CornerRadius = UDim.new(0, 14)
     local mainStroke = redStroke(main, 2)
@@ -394,23 +427,43 @@ local function createMainUI(onToggle)
     local body = Instance.new("Frame", main)
     body.Size, body.Position, body.BackgroundTransparency = UDim2.new(1, 0, 1, -32), UDim2.fromOffset(0, 32), 1
 
-    local img = Instance.new("ImageLabel", body)
-    img.AnchorPoint, img.Position, img.Size = Vector2.new(.5, 0), UDim2.new(.5, 0, 0, 10), UDim2.fromOffset(80, 80)
-    img.BackgroundTransparency, img.Image = 1, LOGO
+    local function textLabel(text, y, h, size, color)
+        local l = Instance.new("TextLabel", body)
+        l.Size, l.Position, l.BackgroundTransparency = UDim2.new(1, -32, 0, h or 22), UDim2.fromOffset(16, y), 1
+        l.Font, l.TextSize, l.TextColor3 = Enum.Font.Gotham, size or 12, color or Color3.fromRGB(220, 220, 220)
+        l.TextXAlignment, l.Text = Enum.TextXAlignment.Left, text
+        return l
+    end
+    local function textBox(y, placeholder, value, width, x)
+        local b = Instance.new("TextBox", body)
+        b.Size, b.Position = UDim2.fromOffset(width or 308, 30), UDim2.fromOffset(x or 16, y)
+        b.BackgroundColor3, b.TextColor3, b.PlaceholderText = Color3.fromRGB(16, 16, 16), Color3.new(1, 1, 1), placeholder
+        b.Font, b.TextSize, b.ClearTextOnFocus, b.Text = Enum.Font.Gotham, 12, false, tostring(value or "")
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+        redStroke(b, 1)
+        return b
+    end
+    local function button(text, y, callback, color, width, x)
+        local b = Instance.new("TextButton", body)
+        b.Size, b.Position, b.Text = UDim2.fromOffset(width or 308, 30), UDim2.fromOffset(x or 16, y), text
+        b.Font, b.TextSize, b.TextColor3, b.BackgroundColor3 = Enum.Font.GothamBold, 12, Color3.new(1, 1, 1), color or RED
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+        b.MouseButton1Click:Connect(callback)
+        return b
+    end
 
-    local lbl = Instance.new("TextLabel", body)
-    lbl.Size, lbl.Position, lbl.BackgroundTransparency = UDim2.new(1, -90, 0, 30), UDim2.fromOffset(16, 100), 1
-    lbl.Font, lbl.TextSize, lbl.TextColor3, lbl.TextXAlignment = Enum.Font.GothamMedium, 14, Color3.new(1, 1, 1), Enum.TextXAlignment.Left
-    lbl.Text = "Auto Kaitan / ออโต้ฟาร์ม"
+    local img = Instance.new("ImageLabel", body)
+    img.AnchorPoint, img.Position, img.Size = Vector2.new(.5, 0), UDim2.new(.5, 0, 0, 10), UDim2.fromOffset(70, 70)
+    img.BackgroundTransparency, img.Image = 1, LOGO
+    textLabel("Auto Kaitan / ออโต้ฟาร์ม", 86, 24, 14, Color3.new(1, 1, 1))
 
     local sw = Instance.new("TextButton", body)
-    sw.Size, sw.Position, sw.Text = UDim2.fromOffset(52, 26), UDim2.new(1, -68, 0, 102), ""
+    sw.Size, sw.Position, sw.Text = UDim2.fromOffset(52, 26), UDim2.new(1, -68, 0, 84), ""
     sw.BackgroundColor3, sw.AutoButtonColor = Color3.fromRGB(45, 45, 45), false
     Instance.new("UICorner", sw).CornerRadius = UDim.new(1, 0)
     local knob = Instance.new("Frame", sw)
     knob.Size, knob.Position, knob.BackgroundColor3 = UDim2.fromOffset(20, 20), UDim2.fromOffset(3, 3), Color3.new(1, 1, 1)
     Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
-
     local on = false
     local function setOn(v)
         on = v
@@ -420,42 +473,63 @@ local function createMainUI(onToggle)
     end
     sw.MouseButton1Click:Connect(function() setOn(not on) end)
 
-    local tb = Instance.new("TextBox", body)
-    tb.Size, tb.Position = UDim2.new(1, -32, 0, 30), UDim2.fromOffset(16, 150)
-    tb.BackgroundColor3, tb.TextColor3, tb.PlaceholderText = Color3.fromRGB(16, 16, 16), Color3.new(1, 1, 1), "Discord Webhook URL"
-    tb.Font, tb.TextSize, tb.ClearTextOnFocus, tb.Text = Enum.Font.Gotham, 12, false, State.webhook
-    Instance.new("UICorner", tb).CornerRadius = UDim.new(0, 8)
-    redStroke(tb, 1)
-
-    local save = Instance.new("TextButton", body)
-    save.Size, save.Position, save.Text = UDim2.new(1, -32, 0, 30), UDim2.fromOffset(16, 188), "บันทึก"
-    save.Font, save.TextSize, save.TextColor3, save.BackgroundColor3 = Enum.Font.GothamBold, 13, Color3.new(1, 1, 1), RED
-    Instance.new("UICorner", save).CornerRadius = UDim.new(0, 8)
-
-    local msg = Instance.new("TextLabel", body)
-    msg.Size, msg.Position, msg.BackgroundTransparency = UDim2.new(1, -32, 0, 20), UDim2.fromOffset(16, 224), 1
-    msg.Font, msg.TextSize, msg.TextColor3, msg.Text = Enum.Font.Gotham, 12, Color3.fromRGB(200, 200, 215), ""
-    save.MouseButton1Click:Connect(function()
-        local ok, text = saveWebhook(tb.Text)
-        msg.Text = text
-        msg.TextColor3 = ok and Color3.fromRGB(110, 220, 130) or Color3.fromRGB(240, 100, 100)
+    textLabel("Discord Webhook", 120, 20, 12, Color3.fromRGB(190, 190, 190))
+    local webhookBox = textBox(140, "Discord Webhook URL", State.webhook, 308, 16)
+    local webhookMsg = textLabel("", 176, 20, 11, Color3.fromRGB(170, 170, 170))
+    button("บันทึก Webhook", 198, function()
+        local ok, msg = saveWebhook(webhookBox.Text)
+        webhookMsg.Text, webhookMsg.TextColor3 = msg, ok and Color3.fromRGB(110, 220, 130) or Color3.fromRGB(240, 100, 100)
     end)
 
-    local st = Instance.new("TextLabel", body)
-    st.Size, st.Position, st.BackgroundTransparency = UDim2.new(1, -32, 0, 20), UDim2.fromOffset(16, 250), 1
-    st.Font, st.TextSize, st.TextColor3, st.Text = Enum.Font.Gotham, 12, Color3.fromRGB(175, 175, 175), "สถานะ: พร้อม"
-    setStatus = function(t) st.Text = "สถานะ: " .. t end
+    textLabel("ตั้งค่าการสุ่ม", 238, 22, 13, Color3.fromRGB(255, 110, 110))
+    local mysticBox = textBox(264, "จำนวน Mystic เป้าหมาย", MYSTIC_STOP_AT, 148, 16)
+    local gemBox = textBox(264, "เพชรขั้นต่ำ", GEM_THRESHOLD, 148, 176)
+    local settingMsg = textLabel("", 298, 20, 11, Color3.fromRGB(170, 170, 170))
+    button("บันทึกค่าการสุ่ม", 320, function()
+        local m, g = tonumber(mysticBox.Text), tonumber(gemBox.Text)
+        if not m or not g or m < 1 or g < 0 then
+            settingMsg.Text, settingMsg.TextColor3 = "กรุณาใส่ตัวเลขที่ถูกต้อง", Color3.fromRGB(240, 100, 100)
+            return
+        end
+        MYSTIC_STOP_AT = math.clamp(math.floor(m), 1, 99)
+        GEM_THRESHOLD = math.clamp(math.floor(g), 0, 100000000)
+        saveSettings()
+        settingMsg.Text, settingMsg.TextColor3 = "บันทึกค่าการสุ่มแล้ว", Color3.fromRGB(110, 220, 130)
+    end)
 
-    -- แถวเวลารัน + จำนวน Mythic ที่ได้
-    local info = Instance.new("TextLabel", body)
-    info.Size, info.Position, info.BackgroundTransparency = UDim2.new(1, -32, 0, 20), UDim2.fromOffset(16, 272), 1
-    info.Font, info.TextSize, info.TextColor3 = Enum.Font.GothamMedium, 12, Color3.fromRGB(255, 110, 110)
-    info.TextXAlignment = Enum.TextXAlignment.Left
+    textLabel("เปิด/ปิดการแจ้งเตือน Webhook", 360, 22, 13, Color3.fromRGB(255, 110, 110))
+    local names = {
+        {"แจ้งเตือนเมื่อได้ Mystic", "mystic"},
+        {"แจ้งเตือนเมื่อครบเป้าหมาย", "target"},
+        {"แจ้งเตือนเมื่อเริ่มทำงาน", "start"},
+        {"แจ้งเตือนเมื่อชนะด่าน", "win"},
+        {"แจ้งเตือนเมื่อจัดทีม", "team"},
+        {"แจ้งเตือนเมื่อเกิดข้อผิดพลาด", "error"},
+    }
+    for i, item in ipairs(names) do
+        local y = 388 + (i - 1) * 30
+        textLabel(item[1], y + 3, 24, 11, Color3.fromRGB(205, 205, 205))
+        local b = Instance.new("TextButton", body)
+        b.Size, b.Position = UDim2.fromOffset(54, 24), UDim2.new(1, -70, 0, y)
+        b.Font, b.TextSize = Enum.Font.GothamBold, 11
+        b.Text = Notify[item[2]] and "เปิด" or "ปิด"
+        b.TextColor3, b.BackgroundColor3 = Color3.new(1, 1, 1), Notify[item[2]] and RED or Color3.fromRGB(45, 45, 45)
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 7)
+        b.MouseButton1Click:Connect(function()
+            Notify[item[2]] = not Notify[item[2]]
+            b.Text, b.BackgroundColor3 = Notify[item[2]] and "เปิด" or "ปิด", Notify[item[2]] and RED or Color3.fromRGB(45, 45, 45)
+            saveSettings()
+        end)
+    end
+
+    local st = textLabel("สถานะ: พร้อม", 580, 20, 12, Color3.fromRGB(175, 175, 175))
+    setStatus = function(t) st.Text = "สถานะ: " .. t end
+    local info = textLabel("", 604, 20, 11, Color3.fromRGB(255, 110, 110))
     task.spawn(function()
         while info.Parent do
             local t = State.startedAt and math.max(0, os.time() - State.startedAt) or 0
-            info.Text = string.format("เวลารัน: %02d:%02d:%02d   Mythic: %d/%d%s",
-                t // 3600, (t % 3600) // 60, t % 60, State.mystics, MYSTIC_STOP_AT, mysticDone() and " (หยุดสุ่ม)" or "")
+            info.Text = string.format("เวลา %02d:%02d:%02d | Mystic %d/%d | เพชร %d",
+                t // 3600, (t % 3600) // 60, t % 60, State.mystics, MYSTIC_STOP_AT, gems())
             task.wait(1)
         end
     end)
@@ -463,11 +537,11 @@ local function createMainUI(onToggle)
     local minimized = false
     minBtn.MouseButton1Click:Connect(function()
         minimized = not minimized
-        tween(main, 0.25, { Size = minimized and UDim2.fromOffset(300, 32) or UDim2.fromOffset(300, 356) })
+        tween(main, 0.25, { Size = minimized and UDim2.fromOffset(340, 32) or UDim2.fromOffset(340, 640) })
     end)
     closeBtn.MouseButton1Click:Connect(function()
-        onToggle(false) -- หยุดและเซฟสถานะ ไม่ให้เปิดต่อเองรอบหน้า
-        _G.FD_AUTOFARM_LOADED = nil -- ปิดหน้าต่างแล้ว รันสคริปต์ใหม่ได้
+        onToggle(false)
+        _G.FD_AUTOFARM_LOADED = nil
         tween(scale, 0.25, { Scale = 0 })
         task.wait(0.3)
         gui:Destroy()
@@ -574,7 +648,7 @@ local function equipMystic(before)
                 local slot = math.max(1, MYSTIC_SLOT - (State.mystics - 1))
                 say("ได้ " .. MYSTIC_RARITY .. " ตัวที่ " .. State.mystics .. ": " .. name)
                 equipUnit(u.uuid, slot)
-                sendWebhook("🌟 สุ่มได้ " .. MYSTIC_RARITY .. " (" .. State.mystics .. "/" .. MYSTIC_STOP_AT .. ")",
+                sendWebhook("mystic", "🌟 สุ่มได้ " .. MYSTIC_RARITY .. " (" .. State.mystics .. "/" .. MYSTIC_STOP_AT .. ")",
                     "**" .. name .. "** — สวมใส่แล้วที่สล็อต " .. slot, 16766720)
             end
         end
@@ -582,7 +656,7 @@ local function equipMystic(before)
     if found > 0 then
         saveState()
         if mysticDone() then
-            sendWebhook("🛑 ครบ " .. MYSTIC_STOP_AT .. " " .. MYSTIC_RARITY, "หยุดสุ่ม แล้วฟาร์มต่อเรื่อยๆ", 15158332)
+            sendWebhook("target", "🛑 ครบ " .. MYSTIC_STOP_AT .. " " .. MYSTIC_RARITY, "หยุดสุ่ม แล้วฟาร์มต่อเรื่อยๆ", 15158332)
         end
     end
     return found > 0
@@ -680,7 +754,7 @@ local function equipBestTeam()
         end
     end
     if changed > 0 then
-        sendWebhook("🛡️ จัดทีมที่ดีที่สุด", "เปลี่ยน " .. changed .. " สล็อต (ยังได้ Mythic " .. State.mystics .. "/" .. MYSTIC_STOP_AT .. ")", 3447003)
+        sendWebhook("team", "🛡️ จัดทีมที่ดีที่สุด", "เปลี่ยน " .. changed .. " สล็อต (ยังได้ Mythic " .. State.mystics .. "/" .. MYSTIC_STOP_AT .. ")", 3447003)
     end
 end
 
@@ -1322,7 +1396,7 @@ end
 
 -- State machine หลัก
 local function mainLoop()
-    sendWebhook("▶️ เริ่มออโต้ฟาร์ม", plr.Name, 5763719)
+    sendWebhook("start", "▶️ เริ่มออโต้ฟาร์ม", plr.Name, 5763719)
     while alive() do
         local ok, err = pcall(function()
             if inLobby() then
@@ -1355,7 +1429,7 @@ local function mainLoop()
                     local won = lastResult and lastResult.victory
                     if won ~= false then
                         markCleared()
-                        sendWebhook("🏆 ชนะด่าน", "เพชรตอนนี้: " .. gems(), 5763719)
+                        sendWebhook("win", "🏆 ชนะด่าน", "เพชรตอนนี้: " .. gems(), 5763719)
                     end
                     Place.ready = false
                     lastResult = nil
@@ -1372,7 +1446,7 @@ local function mainLoop()
         end)
         if not ok then
             warn("[FD] error: " .. tostring(err))
-            sendWebhook("⚠️ เกิดข้อผิดพลาด", "```" .. tostring(err):sub(1, 500) .. "```", 15548997)
+            sendWebhook("error", "⚠️ เกิดข้อผิดพลาด", "```" .. tostring(err):sub(1, 500) .. "```", 15548997)
             task.wait(2)
         end
         task.wait(LOOP_DELAY)
@@ -1398,6 +1472,7 @@ end
 -------------------------------------------------------------------------------
 repeat task.wait() until game:IsLoaded()
 loadWebhook()
+loadSettings()
 loadState()
 local resume = State.running -- สวิตช์ค้างเปิดไว้ก่อนเกมวาร์ป -> เปิดต่อเอง
 State.running = false
