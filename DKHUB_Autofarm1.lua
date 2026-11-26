@@ -1421,6 +1421,22 @@ local function bestSpot(unit, mine, ctx)
         end
     end
 
+    -- ช่วงเร่งเติมสนามยังคงตรวจ validSpot และ refused ตามปกติ แต่ไม่เสียเวลา
+    -- คำนวณคะแนนทุกจุด เพราะเป้าหมายตอนนี้คือขึ้นจำนวนตัวให้ทันเวฟแรก
+    if ctx and ctx.fastFill and not support then
+        for ci, c in ipairs(Place.cands) do
+            local pos = validSpot(c, unit.data, mine)
+            if pos then
+                local score = scoreList(candCover(ci, pos, range), cov, wmul)
+                Place.spotCache[unit.uuid] = { n = #mine, t = os.clock(), pos = pos, score = score, mode = mode }
+                return pos, score
+            end
+            if ci % 40 == 0 then task.wait() end
+        end
+        Place.spotCache[unit.uuid] = { n = #mine, t = os.clock(), pos = nil, mode = mode }
+        return nil
+    end
+
     local bestPos, bestScore
     local n = 0
     for ci, c in ipairs(Place.cands) do
@@ -1587,6 +1603,7 @@ local ECON = {
     BOSS_MAX      = 2,    -- เวฟสุดท้ายเหลือศัตรูไม่เกินกี่ตัว ถือเป็นโหมดตามบอส
     SPOT_BUDGET   = 12,   -- เพิ่มจำนวน candidate ที่ตรวจต่อรอบ ลดเวลาค้างตอนเติมสนาม
     FILL_TARGET    = 12,  -- ช่วงต้นเกมให้เร่งวางจนมี core ประมาณนี้ก่อนค่อยแข่งกับอัปเกรด
+    FAST_FILL      = true, -- ช่วงเร่งด่วนใช้จุดแรกที่ valid ไม่สแกนทั้งแผนที่
 }
 
 local Economy = { rate = 0 }
@@ -1747,13 +1764,14 @@ function Economy.snapshot()
         end
         wmul[i] = wv
     end
-    local mode = tostring(layout) .. (deepen and "d" or "") .. (guardNeed and "g" or "") .. (leak and "l" or "") .. (boss and "b" or "")
+    local fastFill = ECON.FAST_FILL and #mine < ECON.FILL_TARGET
+    local mode = tostring(layout) .. (deepen and "d" or "") .. (guardNeed and "g" or "") .. (leak and "l" or "") .. (boss and "b" or "") .. (fastFill and "f" or "")
 
     return {
         cash = cash, wave = w, total = total, left = left,
         pressure = pressure, threat = 1 + 2 * pressure, enemies = em,
         reach = reach, guards = guards, deepen = deepen, leak = leak, guardNeed = guardNeed, boss = boss, danger = danger,
-        wmul = wmul, mode = mode, layout = layout,
+        wmul = wmul, mode = mode, layout = layout, fastFill = fastFill,
         mine = mine, byUuid = byUuid, cov = cov, dens = em.dens,
         fieldFull = #mine >= FIELD_MAX or (Place.cap ~= nil and #mine >= Place.cap),
         countsByUuid = countsByUuid,
@@ -1780,7 +1798,7 @@ function Match.place(unit, reason, ctx)
         local t0 = os.clock()
         while os.clock() - t0 < PLACE_CONFIRM_TIMEOUT and alive() do
             if unitCountByUuid(unit.uuid) > beforeCount then break end
-            task.wait(0.15)
+            task.wait(0.05)
         end
         if unitCountByUuid(unit.uuid) > beforeCount then
             Place.noSpot[unit.uuid], Place.placeFail[unit.uuid] = nil, 0
