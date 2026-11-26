@@ -1307,6 +1307,52 @@ local function scoreList(list, cov, wmul)
     return score
 end
 
+-- คะแนนเสริมที่พอร์ตจาก Match.bestSpot ของ src ให้เข้ากับข้อมูลที่ไฟล์นี้มีจริง
+-- src จะแยก control/fast/kill-zone ก่อนค่อยใช้ coverage ปกติ; ฟังก์ชันนี้ทำหน้าที่
+-- เป็นชั้นเดียวกันโดยใช้ layout, road density และตำแหน่งศัตรูจาก Economy.snapshot()
+local function sourceSpotBonus(pos, range, ctx, farm)
+    if farm or not ctx or #Place.samples == 0 then return 0 end
+    local fp = flat(pos)
+    local bonus, covered, late, early, danger = 0, 0, 0, 0, 0
+    local enemy = ctx.enemies or {}
+    local front = tonumber(enemy.front) or 0
+    local density = enemy.dens or {}
+    for i, s in ipairs(Place.samples) do
+        if (flat(s.pos) - fp).Magnitude <= range then
+            covered += 1
+            if s.prog >= 0.6 then late += 1 end
+            if s.prog <= 0.35 then early += 1 end
+            if density[i] and density[i] > 0 then danger += density[i] end
+        end
+    end
+    if covered == 0 then return -1000 end
+
+    -- Match.style == fast: คุมช่วงต้นถนนเพื่อเก็บศัตรูตั้งแต่ทางเข้า
+    if ctx.layout == 1 then bonus += early * 0.9 end
+    -- Match.killZone: stack จุดยิงช่วงท้ายถนนและช่วงที่มีศัตรูหนาแน่น
+    if ctx.layout == 3 or ctx.boss then bonus += late * 1.25 + danger * 0.7 end
+    -- Match.controlSpot / Match.holdSpot: ถ้ามีศัตรูอยู่ ให้ย้ายจุดไปช่วงหน้าหัวแถว
+    if front > 0 then
+        local nearFront = math.max(0, 1 - math.abs((late > 0 and 0.8 or 0) - front) * 2)
+        if ctx.leak or ctx.deepen then
+            bonus += nearFront * 12
+        else
+            bonus += nearFront * 3
+        end
+    end
+    -- guard/last-line: หลังวาง core แล้วต้องมีจุดยิงช่วงก่อนฐานเสมอ
+    if ctx.guardNeed then
+        local guardFrom = 0.75 -- ค่าเดียวกับ ECON.GUARD_FROM ซึ่งประกาศหลัง bestSpot
+        for _, s in ipairs(Place.samples) do
+            if s.prog >= guardFrom and (flat(s.pos) - fp).Magnitude <= range then
+                bonus += 8
+                break
+            end
+        end
+    end
+    return bonus
+end
+
 -- ยูนิตสายสนับสนุน/คุมเกม (ไม่มีดาเมจเอง ไม่ใช่ฟาร์ม): ไปยืนที่ที่ตัวดาเมจของเราอยู่ในระยะมากที่สุด
 local function isSupportUnit(data)
     local up = type(data.upgrade) == "table" and data.upgrade[#data.upgrade] or nil
@@ -1372,6 +1418,7 @@ local function bestSpot(unit, mine, ctx)
                 end
             else
                 score = scoreList(candCover(ci, pos, range), cov, wmul)
+                score += sourceSpotBonus(pos, range, ctx, farm)
             end
             if farm then
                 if not bestScore or score < bestScore then bestPos, bestScore = pos, score end
