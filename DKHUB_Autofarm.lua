@@ -1346,8 +1346,11 @@ local function autoUpgrade()
         local fb = isFarm(idb) and 0 or 1
         return fa < fb
     end)
+    -- ทำทีละ 1 action ตามแนวคิด src: วาง/อัปเกรดแล้วกลับไปประเมินใหม่
+    -- ป้องกันอัปเกรดตัวเดียวรวดเดียวจนตัวอื่นไม่ได้ลงสนาม
     for _, u in ipairs(list) do
         if not alive() then return end
+        local upgraded = false
         pcall(function()
             local st = u._stats
             local id = st.id.Value
@@ -1362,9 +1365,11 @@ local function autoUpgrade()
                 local gain = farmGain(data, idx)
                 if gain <= 0 or gain * remaining < cost then return end
             end
-            fire(R.upgradeUnit, u)
+            local ok, res = fire(R.upgradeUnit, u)
+            if ok and res then upgraded = true end
             task.wait(0.15)
         end)
+        if upgraded then return end
     end
 end
 
