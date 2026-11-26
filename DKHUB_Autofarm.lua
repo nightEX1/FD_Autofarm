@@ -15,7 +15,7 @@ _G.FD_AUTOFARM_LOADED = true
 -- CONFIG
 -------------------------------------------------------------------------------
 local IMAGE_ID      = "rbxassetid://78028716933387"   -- โลโก้ของคุณ
-local HUB_NAME      = "FD Autofarm"
+local HUB_NAME      = "DKHUB AutoFram"
 local RED           = Color3.fromRGB(220, 25, 35)   -- สีขอบ/ปุ่ม/แถบโหลด (ธีมแดง-ดำ)
 local SAVE_FOLDER   = "FD_Autofarm"
 local WEBHOOK_FILE  = SAVE_FOLDER .. "/webhook.txt"
@@ -29,7 +29,7 @@ local LEVEL_SEARCH   = "keep"           -- คำค้นชื่อด่า�
 local DIFFICULTY     = "Normal"         -- ต้นฉบับใช้ "Normal"/"Hard"
 -- วิธีเลือกด่าน (ดึงมาจากระบบ story ของ RobScript: Modes.list / Modes.done / Modes.open / Modes.diffOpen)
 --   "progress" = ด่านถัดไปที่ "ยังไม่เคยชนะ" และปลดล็อกแล้ว ตามลำดับโลก/ด่านของเกม (Normal ก่อน แล้วค่อย Hard)
---                ได้เพชรรางวัลเคลียร์ครั้งแรก ถ้าชนะครบหมดแล้วจะฟาร์มด่านที่ LEVEL_SEARCH ต่อ
+--                ได้เพชรรางวัลเคลียร์ครั้งแรก ถ้าชนะครบหมดแล้วจะฟาร์ม "ด่านล่าสุดที่บัญชีเราปลดล็อก" ต่อ
 --   "search"   = ล็อกด่านตาม LEVEL_SEARCH ตลอด (ถ้าใส่ FIRST_LEVEL_ID จะใช้ค่านั้นก่อนเสมอ)
 local STAGE_MODE     = "progress"
 local FRIENDS_ONLY   = false
@@ -773,7 +773,8 @@ local clearedCache = {}
 local function levelDone(id, diff)
     if clearedCache[id .. ":" .. diff] then return true end
     local p = profile()
-    local cd = p and p.completed_story_levels and p.completed_story_levels[id]
+    local ld = p and p.level_data -- ต้นฉบับ: Core.prof().level_data.completed_story_levels
+    local cd = ld and ld.completed_story_levels and ld.completed_story_levels[id]
     if not cd then return false end
     if cd.difficulty_completed_data then
         local d = cd.difficulty_completed_data[diff]
@@ -821,6 +822,43 @@ local function nextUnclearedStage()
     end
 end
 
+-- ด่านล่าสุด (ลำดับสูงสุด) ที่บัญชีนี้ปลดล็อกแล้ว ใช้ตอนชนะครบทุกด่าน หรืออ่านประวัติการชนะไม่ได้
+local function latestOpenStage()
+    local now, best, bestRank = os.time(), nil, 0
+    for rank, wid in ipairs(listOf(Game.WLO and Game.WLO.WORLD_ORDER)) do
+        local w = Game.Worlds and Game.Worlds[wid]
+        if w and not w.legend_stage and not w.raid_world then
+            for _, ref in ipairs(listOf(w.levels)) do
+                local id = type(ref) == "table" and ref.id
+                local lv = id and Game.Levels[id]
+                if lv and not lv._portal_only_level and not lv.is_raid
+                    and (stageSkip[id .. ":" .. DIFFICULTY] or 0) <= now and levelOpen(id) then
+                    best, bestRank = id, rank
+                end
+            end
+        end
+    end
+    return best, bestRank
+end
+
+-- นับด่านที่เปิด/ชนะแล้ว (Normal) ไว้พิมพ์ debug
+local function stageStats()
+    local opened, done = 0, 0
+    for _, wid in ipairs(listOf(Game.WLO and Game.WLO.WORLD_ORDER)) do
+        local w = Game.Worlds and Game.Worlds[wid]
+        if w and not w.legend_stage and not w.raid_world then
+            for _, ref in ipairs(listOf(w.levels)) do
+                local id = type(ref) == "table" and ref.id
+                if id and Game.Levels[id] and levelOpen(id) then
+                    opened += 1
+                    if levelDone(id, "Normal") then done += 1 end
+                end
+            end
+        end
+    end
+    return opened, done
+end
+
 local sessionWaited = false
 -- คืน (levelId, difficulty) ของด่านที่จะเล่นรอบนี้
 local function findStage()
@@ -835,12 +873,25 @@ local function findStage()
             end
             sessionWaited = true
         end
-        local id, diff, rank = nextUnclearedStage()
+        local p = profile()
+        local haveHistory = p and p.level_data ~= nil
+        local opened, done = stageStats()
+        print(string.format("[FD] ด่านที่เปิดแล้ว %d ด่าน / ชนะ Normal แล้ว %d ด่าน (อ่านประวัติ: %s)", opened, done, tostring(haveHistory)))
+        if haveHistory then
+            local id, diff, rank = nextUnclearedStage()
+            if id then
+                print(string.format("[FD] ด่านถัดไปที่ยังไม่เคยชนะ: %s (%s) โลกลำดับ %d", stageName(id), diff, rank))
+                return id, diff
+            end
+        end
+        -- ชนะครบแล้ว (หรืออ่านประวัติไม่ได้): เล่นด่านล่าสุดที่ปลดล็อกในบัญชีเรา ไม่ย้อนกลับไปด่าน 1
+        local id, rank = latestOpenStage()
         if id then
-            print(string.format("[FD] ด่านถัดไปที่ยังไม่เคยชนะ: %s (%s) โลกลำดับ %d", stageName(id), diff, rank))
+            local diff = diffOpen(id, DIFFICULTY) and DIFFICULTY or "Normal"
+            print(string.format("[FD] ฟาร์มด่านล่าสุดที่เปิดแล้ว: %s (%s) โลกลำดับ %d", stageName(id), diff, rank))
             return id, diff
         end
-        print("[FD] ชนะครบทุกด่านที่เปิดแล้ว -> ฟาร์มด่านตาม LEVEL_SEARCH")
+        print("[FD] หาด่านที่ปลดล็อกไม่ได้ -> ใช้ LEVEL_SEARCH")
     end
     return findFirstLevel(), DIFFICULTY
 end
