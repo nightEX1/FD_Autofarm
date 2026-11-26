@@ -62,7 +62,7 @@ local MYSTIC_STOP_AT = 2                  -- ปรับได้จาก UI
 -- เรียงตามระดับความหายาก > ตัว evolved > ดาเมจต่อวินาทีที่อัปสุด > เลเวล (เป็นการประมาณ ไม่ใช่ tier list ของเกม)
 local BEST_TEAM        = true
 local TEAM_SIZE        = 6                  -- [แก้ตรงนี้] จำนวนช่องทีม
-local TEAM_FARM_SLOTS  = 2                  -- กันไว้ให้ Bulby/CEO หรือตัวฟาร์มกี่ช่อง
+local TEAM_FARM_SLOTS  = 1                  -- เลือก Bulby หรือ CEO เพียง 1 ตัว
 
 -- รันสคริปต์ซ้ำเองหลังเกมวาร์ป/รีจอยน์ (ต้องใช้ executor ที่มี queue_on_teleport)
 -- ใส่อย่างใดอย่างหนึ่ง: SCRIPT_URL (ลิงก์ raw ของสคริปต์นี้) หรือเซฟไฟล์นี้ไว้ใน workspace ชื่อ SCRIPT_FILE
