@@ -712,6 +712,13 @@ local function unitPriority(id, data)
     if isMoneyPriorityUnit(id, data) then return 100 end
     return RARITY_RANK[tostring(data and data.rarity or ""):lower()] or 0
 end
+local function unitPlacementTier(id, data)
+    if isMoneyPriorityUnit(id, data) then return 3 end
+    local rarity = tostring(data and data.rarity or ""):lower()
+    if rarity == "mythic" or rarity == "mystic" or rarity == "legendary" then return 3 end
+    if rarity == "epic" or rarity == "common" then return 1 end
+    return 2
+end
 local function isPreferredTeamUnit(id, data)
     local rarity = tostring(data and data.rarity or ""):lower()
     return isMoneyPriorityUnit(id, data) or rarity == "mythic" or rarity == "mystic" or rarity == "legendary"
@@ -1238,6 +1245,9 @@ local function placeUnits(noWait, limit)
         local da, db = Game.Units[a.id], Game.Units[b.id]
         local ra = unitPriority(a.id, da)
         local rb = unitPriority(b.id, db)
+        local ta = unitPlacementTier(a.id, da)
+        local tb = unitPlacementTier(b.id, db)
+        if ta ~= tb then return ta > tb end
         if ra ~= rb then return ra > rb end
         local fa, fb = isFarm(a.id) and 0 or 1, isFarm(b.id) and 0 or 1
         if fa ~= fb then return fa < fb end
@@ -1249,6 +1259,17 @@ local function placeUnits(noWait, limit)
         if not alive() then return end
         refreshPlaced()
         if not placed[unit.uuid] then
+            local currentTier = unitPlacementTier(unit.id, unit.data)
+            local higherWaiting = false
+            for _, other in ipairs(order) do
+                if not placed[other.uuid] and unitPlacementTier(other.id, other.data) > currentTier then
+                    higherWaiting = true
+                    break
+                end
+            end
+            if higherWaiting then
+                continue
+            end
             local cost = tonumber(unit.data.cost) or 0
             local tries = 0
             -- รอบตรวจซ้ำก็ต้องรอเงินเหมือนรอบแรก ไม่เช่นนั้นจะข้ามยูนิตที่ยังซื้อไม่ได้
