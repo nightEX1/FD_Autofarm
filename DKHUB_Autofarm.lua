@@ -1198,7 +1198,7 @@ local function prepareMatch()
     return true
 end
 
-local function placeUnits(noWait)
+local function placeUnits(noWait, limit)
     if not prepareMatch() then say("ยังหาเส้นทางไม่เจอ") return end
     say("กำลังวางยูนิตให้ครบทีม")
     local placed = {}
@@ -1211,15 +1211,19 @@ local function placeUnits(noWait)
     refreshPlaced()
 
     local order = equippedUnits()
-    if FARM_FIRST then
-        table.sort(order, function(a, b)
-            local fa, fb = isFarm(a.id) and 0 or 1, isFarm(b.id) and 0 or 1
-            if fa ~= fb then return fa < fb end
-            return a.slot < b.slot
-        end)
-    end
+    -- ลำดับสำคัญ: Mythic/Mystic และ Legendary ก่อน Epic/Common
+    -- เพื่อให้ตัวดาเมจหลักลงสนามและเริ่มอัปเกรดก่อน ไม่เสียเงินกับตัวระดับต่ำก่อน
+    table.sort(order, function(a, b)
+        local da, db = Game.Units[a.id], Game.Units[b.id]
+        local ra = RARITY_RANK[tostring(da and da.rarity or ""):lower()] or 0
+        local rb = RARITY_RANK[tostring(db and db.rarity or ""):lower()] or 0
+        if ra ~= rb then return ra > rb end
+        local fa, fb = isFarm(a.id) and 0 or 1, isFarm(b.id) and 0 or 1
+        if fa ~= fb then return fa < fb end
+        return a.slot < b.slot
+    end)
 
-    local total, done = #order, 0
+    local total, done, placedThisCall = #order, 0, 0
     for index, unit in ipairs(order) do
         if not alive() then return end
         refreshPlaced()
@@ -1227,6 +1231,10 @@ local function placeUnits(noWait)
             local cost = tonumber(unit.data.cost) or 0
             local tries = 0
             -- รอบตรวจซ้ำก็ต้องรอเงินเหมือนรอบแรก ไม่เช่นนั้นจะข้ามยูนิตที่ยังซื้อไม่ได้
+            if noWait and money() < cost then
+                -- รอบนี้เงินยังไม่พอ ให้ autoUpgrade ทำงานก่อน แล้วค่อยลองวางรอบถัดไป
+                continue
+            end
             while alive() and money() < cost and tries < 180 and not Workspace._DATA.GameFinished.Value do
                 tries += 1
                 task.wait(0.5)
@@ -1251,6 +1259,7 @@ local function placeUnits(noWait)
                             if placed[unit.uuid] then
                                 success = true
                                 done += 1
+                                placedThisCall += 1
                                 print(string.format("[FD] วาง %d/%d: %s ที่ %s (คะแนน %.1f)", done, total, tostring(unit.id), spotKey(pos), score or 0))
                                 break
                             end
@@ -1268,6 +1277,7 @@ local function placeUnits(noWait)
         end
         -- เว้นจังหวะให้ระบบเกมอัปเดตจำนวนยูนิตและเงินก่อนคำสั่งถัดไป
         task.wait(0.8)
+        if limit and placedThisCall >= limit then break end
     end
     refreshPlaced()
     local remaining = 0
@@ -1462,15 +1472,17 @@ local function mainLoop()
                     task.wait(1)
                 end
                 if matchStarted() and not matchFinished() then
-                    placeUnits()
+                    -- วางทีละตัวตามลำดับ rarity แล้วอัปเกรดทันทีในรอบเดียวกัน
+                    placeUnits(true, 1)
                     local lastRecheck = os.clock()
                     while alive() and not matchFinished() do
                         if not autoSkipOn() then voteSkip() end -- ถ้าเกมไม่ได้เปิด autoskip ให้โหวตเอง
+                        placeUnits(true, 1)
                         autoPlay()
                         -- ทุก 8 วิ: ยูนิตที่ยังไม่ได้วาง (เงินไม่พอ/จุดโดนปฏิเสธ) ลองวางใหม่ ยกเว้นเวฟสุดท้าย (ฟาร์มโดนขาย)
                         if os.clock() - lastRecheck > 8 then
                             lastRecheck = os.clock()
-                            if wave() < totalWaves() and hasUnplaced() then placeUnits(true) end
+                            if wave() < totalWaves() and hasUnplaced() then placeUnits(true, 1) end
                         end
                         task.wait(LOOP_DELAY)
                     end
