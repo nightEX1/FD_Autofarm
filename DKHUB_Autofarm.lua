@@ -89,6 +89,15 @@ local HttpService  = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Workspace    = game:GetService("Workspace")
 local plr          = Players.LocalPlayer
+local VirtualUser  = game:GetService("VirtualUser")
+
+-- Anti-AFK: ป้องกัน Roblox เตะออกเมื่อไม่มีอินพุตเป็นเวลานาน
+pcall(function()
+    plr.Idled:Connect(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new(0, 0))
+    end)
+end)
 
 local State = { running = false, webhook = "", mystics = 0, startedAt = nil }
 local Notify = {
