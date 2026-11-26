@@ -62,7 +62,7 @@ local MYSTIC_STOP_AT = 2                  -- ปรับได้จาก UI
 -- เรียงตามระดับความหายาก > ตัว evolved > ดาเมจต่อวินาทีที่อัปสุด > เลเวล (เป็นการประมาณ ไม่ใช่ tier list ของเกม)
 local BEST_TEAM        = true
 local TEAM_SIZE        = 6                  -- [แก้ตรงนี้] จำนวนช่องทีม
-local TEAM_FARM_SLOTS  = 1                  -- กันไว้ให้ยูนิตฟาร์มกี่ช่อง (0 = ไม่ใส่ฟาร์ม)
+local TEAM_FARM_SLOTS  = 2                  -- กันไว้ให้ Bulby/CEO หรือตัวฟาร์มกี่ช่อง
 
 -- รันสคริปต์ซ้ำเองหลังเกมวาร์ป/รีจอยน์ (ต้องใช้ executor ที่มี queue_on_teleport)
 -- ใส่อย่างใดอย่างหนึ่ง: SCRIPT_URL (ลิงก์ raw ของสคริปต์นี้) หรือเซฟไฟล์นี้ไว้ใน workspace ชื่อ SCRIPT_FILE
@@ -700,10 +700,27 @@ end
 local RARITY_RANK = { common = 1, uncommon = 2, rare = 2, epic = 3, legendary = 4, mythic = 5, mystic = 5, secret = 6 }
 local lastTeam = {} -- slot -> uuid ที่สคริปต์สวมไปแล้ว กันสวมซ้ำทุกรอบ
 
+-- ลำดับพิเศษตาม src: Bulby/CEO เป็นตัวทำเงิน ต้องมาก่อนตัวดาเมจทั่วไป
+local function unitText(id, data)
+    return (tostring(id) .. " " .. tostring(data and data.name or "")):lower()
+end
+local function isMoneyPriorityUnit(id, data)
+    local text = unitText(id, data)
+    return text:find("bulby", 1, true) ~= nil or text:find("ceo", 1, true) ~= nil
+end
+local function unitPriority(id, data)
+    if isMoneyPriorityUnit(id, data) then return 100 end
+    return RARITY_RANK[tostring(data and data.rarity or ""):lower()] or 0
+end
+local function isPreferredTeamUnit(id, data)
+    local rarity = tostring(data and data.rarity or ""):lower()
+    return isMoneyPriorityUnit(id, data) or rarity == "mythic" or rarity == "mystic" or rarity == "legendary"
+end
+
 local function unitScore(u)
     local d = Game.Units and Game.Units[u.unit_id]
     if not d then return -1 end
-    local rank = RARITY_RANK[tostring(d.rarity):lower()] or 0
+    local rank = unitPriority(u.unit_id, d)
     local dps = 0
     pcall(function()
         local up = d.upgrade
@@ -720,10 +737,14 @@ local function equipBestTeam()
     if not BEST_TEAM or not Game.Units then return end
     local farms, atks = {}, {}
     for _, u in pairs(ownedUnits()) do
-        local sc = unitScore(u)
-        if sc >= 0 then
-            local row = { uuid = u.uuid, id = u.unit_id, score = sc }
-            if isFarm(u.unit_id) then farms[#farms + 1] = row else atks[#atks + 1] = row end
+        local data = Game.Units[u.unit_id]
+        -- ทีมออโต้เลือกเฉพาะ Mystic/Mythic + Legendary และ Bulby/CEO เป็นข้อยกเว้น
+        if data and isPreferredTeamUnit(u.unit_id, data) then
+            local sc = unitScore(u)
+            if sc >= 0 then
+                local row = { uuid = u.uuid, id = u.unit_id, score = sc }
+                if isFarm(u.unit_id) or isMoneyPriorityUnit(u.unit_id, data) then farms[#farms + 1] = row else atks[#atks + 1] = row end
+            end
         end
     end
     local function byScore(a, b) return a.score > b.score end
@@ -1215,8 +1236,8 @@ local function placeUnits(noWait, limit)
     -- เพื่อให้ตัวดาเมจหลักลงสนามและเริ่มอัปเกรดก่อน ไม่เสียเงินกับตัวระดับต่ำก่อน
     table.sort(order, function(a, b)
         local da, db = Game.Units[a.id], Game.Units[b.id]
-        local ra = RARITY_RANK[tostring(da and da.rarity or ""):lower()] or 0
-        local rb = RARITY_RANK[tostring(db and db.rarity or ""):lower()] or 0
+        local ra = unitPriority(a.id, da)
+        local rb = unitPriority(b.id, db)
         if ra ~= rb then return ra > rb end
         local fa, fb = isFarm(a.id) and 0 or 1, isFarm(b.id) and 0 or 1
         if fa ~= fb then return fa < fb end
@@ -1338,8 +1359,8 @@ local function autoUpgrade()
     table.sort(list, function(a, b)
         local ida, idb = a._stats.id.Value, b._stats.id.Value
         local da, db = Game.Units[ida], Game.Units[idb]
-        local ra = RARITY_RANK[tostring(da and da.rarity or ""):lower()] or 0
-        local rb = RARITY_RANK[tostring(db and db.rarity or ""):lower()] or 0
+        local ra = unitPriority(ida, da)
+        local rb = unitPriority(idb, db)
         if ra ~= rb then return ra > rb end
         -- ถ้าความหายากเท่ากัน ให้ฟาร์มก่อนเพื่อเร่งเศรษฐกิจ
         local fa = isFarm(ida) and 0 or 1
