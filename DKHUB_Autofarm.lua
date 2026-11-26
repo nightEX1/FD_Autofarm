@@ -1334,10 +1334,16 @@ end
 local function autoUpgrade()
     local remaining = math.max(0, totalWaves() - wave())
     local list = myUnits()
-    -- ฟาร์มก่อน แล้วค่อยยูนิตโจมตี
+    -- อัปเกรดตัวหายากก่อน: Mystic/Mythic > Legendary > Epic > Common
     table.sort(list, function(a, b)
-        local fa = isFarm(a._stats.id.Value) and 0 or 1
-        local fb = isFarm(b._stats.id.Value) and 0 or 1
+        local ida, idb = a._stats.id.Value, b._stats.id.Value
+        local da, db = Game.Units[ida], Game.Units[idb]
+        local ra = RARITY_RANK[tostring(da and da.rarity or ""):lower()] or 0
+        local rb = RARITY_RANK[tostring(db and db.rarity or ""):lower()] or 0
+        if ra ~= rb then return ra > rb end
+        -- ถ้าความหายากเท่ากัน ให้ฟาร์มก่อนเพื่อเร่งเศรษฐกิจ
+        local fa = isFarm(ida) and 0 or 1
+        local fb = isFarm(idb) and 0 or 1
         return fa < fb
     end)
     for _, u in ipairs(list) do
