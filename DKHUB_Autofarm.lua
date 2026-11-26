@@ -1041,7 +1041,7 @@ local function joinStage()
 end
 
 -- ===== ระบบวางยูนิตอัตโนมัติ (ดัดแปลงจาก RobScript Match.*) =====
-local Place = { samples = {}, cands = {}, refused = {}, ready = false }
+local Place = { samples = {}, cands = {}, refused = {}, noSpot = {}, placeFail = {}, ready = false }
 
 -- สร้างจุดตัวอย่างตามถนนทุก lane (Match.buildPath)
 local function buildPath()
@@ -1471,9 +1471,113 @@ local function hookSkip()
     end)
 end
 
+-- ===== Economy loop แบบ src: เลือก action ที่คุ้มที่สุดทีละ 1 รายการ =====
+local function unitDpsAt(data, idx)
+    local row = idx == 0 and data or (data.upgrade and data.upgrade[idx])
+    local dmg = tonumber(row and row.damage) or tonumber(data.damage) or 0
+    local cd = tonumber(row and (row.attack_cooldown or row.cooldown)) or tonumber(data.attack_cooldown) or 1
+    return dmg / math.max(cd, 0.5)
+end
+
+local function enemyPressure()
+    local total = math.max(1, totalWaves())
+    local progress = math.clamp(wave() / total, 0, 1)
+    local enemies = 0
+    pcall(function()
+        local folder = Workspace:FindFirstChild("_ENEMIES") or Workspace:FindFirstChild("_enemies")
+        enemies = folder and #folder:GetChildren() or 0
+    end)
+    return math.clamp(progress + math.min(enemies, 20) * 0.02, 0, 1.5)
+end
+
+local function economyAction()
+    if not prepareMatch() then return false end
+    local cash = money()
+    local left = math.max(0, totalWaves() - wave())
+    local pressure = enemyPressure()
+    local mine = myUnits()
+    local byUuid = {}
+    for _, u in ipairs(mine) do
+        local st = u:FindFirstChild("_stats")
+        if st and st:FindFirstChild("uuid") then
+            byUuid[st.uuid.Value] = u
+        end
+    end
+
+    local candidates = {}
+    for _, unit in ipairs(equippedUnits()) do
+        local data = Game.Units and Game.Units[unit.id]
+        if data then
+            local placed = byUuid[unit.uuid]
+            if not placed and #mine < TEAM_SIZE and (Place.noSpot[unit.uuid] or 0) < 3 then
+                local cost = tonumber(data.cost) or math.huge
+                if cash >= cost then
+                    local pos, cover = bestSpot(unit, mine)
+                    if pos then
+                        local baseGain = isFarm(unit.id) and farmGain(data, 0) * left or unitDpsAt(data, 0) * (1 + pressure * 2)
+                        local value = (math.max(0, baseGain) + (cover or 0) * 0.03 + unitPriority(unit.id, data) * 0.05) / math.max(1, cost)
+                        candidates[#candidates + 1] = { kind = "place", unit = unit, data = data, cost = cost, value = value, pos = pos, cover = cover }
+                    else
+                        Place.noSpot[unit.uuid] = (Place.noSpot[unit.uuid] or 0) + 1
+                    end
+                end
+            elseif placed then
+                local st = placed._stats
+                local idx = tonumber(st.upgrade.Value) or 0
+                local nextRow = data.upgrade and data.upgrade[idx + 1]
+                if nextRow then
+                    local cost = tonumber(nextRow.cost) or math.huge
+                    if cash >= cost then
+                        local gain
+                        if isFarm(unit.id) then
+                            gain = farmGain(data, idx) * left
+                            if gain <= 0 or gain < cost then gain = -1 end
+                        else
+                            gain = (unitDpsAt(data, idx + 1) - unitDpsAt(data, idx)) * (1 + pressure * 2)
+                        end
+                        local value = (math.max(0, gain) + unitPriority(unit.id, data) * 0.05) / math.max(1, cost)
+                        if gain >= 0 then
+                            candidates[#candidates + 1] = { kind = "upgrade", unit = placed, data = data, cost = cost, value = value }
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    table.sort(candidates, function(a, b)
+        if a.value ~= b.value then return a.value > b.value end
+        return unitPriority(a.unit.id, a.data) > unitPriority(b.unit.id, b.data)
+    end)
+    local action = candidates[1]
+    if not action then return false end
+
+    if action.kind == "place" then
+        local ok, res = fire(R.spawnUnit, action.unit.uuid, Game.Util.CFramePLV(action.pos, lookAt(action.pos)))
+        if ok and res then
+            say("วาง " .. tostring(action.unit.id) .. " แล้วประเมินใหม่")
+            task.wait(0.25)
+            return true
+        end
+        Place.placeFail[action.unit.uuid] = (Place.placeFail[action.unit.uuid] or 0) + 1
+        Place.refused[spotKey(action.pos)] = true
+        if Place.placeFail[action.unit.uuid] >= 3 then Place.noSpot[action.unit.uuid] = 3 end
+        return false
+    end
+
+    local ok, res = fire(R.upgradeUnit, action.unit)
+    if ok and res then
+        say("อัปเกรด " .. tostring(action.unit.id) .. " แล้วประเมินใหม่")
+        task.wait(0.15)
+        return true
+    end
+    return false
+end
+
 local function autoPlay()
     if R.autoPlay then fire(R.autoPlay, true) end
-    autoUpgrade()
+    -- src ทำทีละ action: วางหรืออัปเกรดอย่างใดอย่างหนึ่ง แล้วประเมินใหม่รอบถัดไป
+    economyAction()
     sellFarmLastWave()
 end
 
@@ -1516,18 +1620,10 @@ local function mainLoop()
                     task.wait(1)
                 end
                 if matchStarted() and not matchFinished() then
-                    -- วางทีละตัวตามลำดับ rarity แล้วอัปเกรดทันทีในรอบเดียวกัน
-                    placeUnits(true)
-                    local lastRecheck = os.clock()
+                    -- src-style economy loop: หนึ่ง action ต่อรอบ แล้ววนประเมินใหม่
                     while alive() and not matchFinished() do
-                        if not autoSkipOn() then voteSkip() end -- ถ้าเกมไม่ได้เปิด autoskip ให้โหวตเอง
-                        placeUnits(true)
+                        if not autoSkipOn() then voteSkip() end
                         autoPlay()
-                        -- ทุก 8 วิ: ยูนิตที่ยังไม่ได้วาง (เงินไม่พอ/จุดโดนปฏิเสธ) ลองวางใหม่ ยกเว้นเวฟสุดท้าย (ฟาร์มโดนขาย)
-                        if os.clock() - lastRecheck > 8 then
-                            lastRecheck = os.clock()
-                            if wave() < totalWaves() and hasUnplaced() then placeUnits(true) end
-                        end
                         task.wait(LOOP_DELAY)
                     end
                 end
