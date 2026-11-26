@@ -409,12 +409,12 @@ local function createMainUI(onToggle)
     gui.Name, gui.ResetOnSpawn = "FD_Main", false
     gui.Parent = guiParent()
 
+    -- หน้าต่างแนวนอน 16:9 แบบไร้เส้นขอบ
     local main = Instance.new("Frame", gui)
     main.AnchorPoint, main.Position = Vector2.new(.5, .5), UDim2.fromScale(.5, .5)
-    main.Size, main.BackgroundColor3 = UDim2.fromOffset(340, 640), Color3.fromRGB(0, 0, 0)
+    main.Size, main.BackgroundColor3 = UDim2.fromOffset(640, 360), Color3.fromRGB(0, 0, 0)
     main.ClipsDescendants = true
-    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 14)
-    local mainStroke = redStroke(main, 2)
+    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
     local scale = Instance.new("UIScale", main)
 
     local top = Instance.new("Frame", main)
@@ -436,38 +436,38 @@ local function createMainUI(onToggle)
     local body = Instance.new("Frame", main)
     body.Size, body.Position, body.BackgroundTransparency = UDim2.new(1, 0, 1, -32), UDim2.fromOffset(0, 32), 1
 
-    local function textLabel(text, y, h, size, color)
+    local function textLabel(text, x, y, w, h, size, color)
         local l = Instance.new("TextLabel", body)
-        l.Size, l.Position, l.BackgroundTransparency = UDim2.new(1, -32, 0, h or 22), UDim2.fromOffset(16, y), 1
+        l.Size, l.Position, l.BackgroundTransparency = UDim2.fromOffset(w or 300, h or 20), UDim2.fromOffset(x, y), 1
         l.Font, l.TextSize, l.TextColor3 = Enum.Font.Gotham, size or 12, color or Color3.fromRGB(220, 220, 220)
         l.TextXAlignment, l.Text = Enum.TextXAlignment.Left, text
         return l
     end
-    local function textBox(y, placeholder, value, width, x)
+    local function textBox(x, y, w, placeholder, value)
         local b = Instance.new("TextBox", body)
-        b.Size, b.Position = UDim2.fromOffset(width or 308, 30), UDim2.fromOffset(x or 16, y)
+        b.Size, b.Position = UDim2.fromOffset(w, 28), UDim2.fromOffset(x, y)
         b.BackgroundColor3, b.TextColor3, b.PlaceholderText = Color3.fromRGB(16, 16, 16), Color3.new(1, 1, 1), placeholder
-        b.Font, b.TextSize, b.ClearTextOnFocus, b.Text = Enum.Font.Gotham, 12, false, tostring(value or "")
-        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
-        redStroke(b, 1)
+        b.Font, b.TextSize, b.ClearTextOnFocus, b.Text = Enum.Font.Gotham, 11, false, tostring(value or "")
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 7)
         return b
     end
-    local function button(text, y, callback, color, width, x)
+    local function button(text, x, y, w, callback, color)
         local b = Instance.new("TextButton", body)
-        b.Size, b.Position, b.Text = UDim2.fromOffset(width or 308, 30), UDim2.fromOffset(x or 16, y), text
-        b.Font, b.TextSize, b.TextColor3, b.BackgroundColor3 = Enum.Font.GothamBold, 12, Color3.new(1, 1, 1), color or RED
-        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+        b.Size, b.Position, b.Text = UDim2.fromOffset(w or 300, 28), UDim2.fromOffset(x, y), text
+        b.Font, b.TextSize, b.TextColor3, b.BackgroundColor3 = Enum.Font.GothamBold, 11, Color3.new(1, 1, 1), color or RED
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 7)
         b.MouseButton1Click:Connect(callback)
         return b
     end
 
+    -- ฝั่งซ้าย: การทำงานและการตั้งค่า
     local img = Instance.new("ImageLabel", body)
-    img.AnchorPoint, img.Position, img.Size = Vector2.new(.5, 0), UDim2.new(.5, 0, 0, 10), UDim2.fromOffset(70, 70)
+    img.Position, img.Size = UDim2.fromOffset(18, 10), UDim2.fromOffset(48, 48)
     img.BackgroundTransparency, img.Image = 1, LOGO
-    textLabel("Auto Kaitan / ออโต้ฟาร์ม", 86, 24, 14, Color3.new(1, 1, 1))
+    textLabel("Auto Kaitan / ออโต้ฟาร์ม", 78, 12, 190, 22, 14, Color3.new(1, 1, 1))
 
     local sw = Instance.new("TextButton", body)
-    sw.Size, sw.Position, sw.Text = UDim2.fromOffset(52, 26), UDim2.new(1, -68, 0, 84), ""
+    sw.Size, sw.Position, sw.Text = UDim2.fromOffset(52, 26), UDim2.fromOffset(270, 20), ""
     sw.BackgroundColor3, sw.AutoButtonColor = Color3.fromRGB(45, 45, 45), false
     Instance.new("UICorner", sw).CornerRadius = UDim.new(1, 0)
     local knob = Instance.new("Frame", sw)
@@ -482,44 +482,53 @@ local function createMainUI(onToggle)
     end
     sw.MouseButton1Click:Connect(function() setOn(not on) end)
 
-    textLabel("Discord Webhook", 120, 20, 12, Color3.fromRGB(190, 190, 190))
-    local webhookBox = textBox(140, "Discord Webhook URL", State.webhook, 308, 16)
-    local webhookMsg = textLabel("", 176, 20, 11, Color3.fromRGB(170, 170, 170))
-    button("บันทึก Webhook", 198, function()
+    textLabel("Discord Webhook", 18, 66, 300, 18, 11, Color3.fromRGB(190, 190, 190))
+    local webhookBox = textBox(18, 86, 304, "Discord Webhook URL", State.webhook)
+    local webhookMsg = textLabel("", 18, 118, 170, 18, 10, Color3.fromRGB(170, 170, 170))
+    button("บันทึก Webhook", 190, 116, 132, function()
         local ok, msg = saveWebhook(webhookBox.Text)
         webhookMsg.Text, webhookMsg.TextColor3 = msg, ok and Color3.fromRGB(110, 220, 130) or Color3.fromRGB(240, 100, 100)
     end)
 
-    textLabel("ตั้งค่าการสุ่ม", 238, 22, 13, Color3.fromRGB(255, 110, 110))
-    local mysticBox = textBox(264, "จำนวน Mystic เป้าหมาย", MYSTIC_STOP_AT, 148, 16)
-    local gemBox = textBox(264, "เพชรขั้นต่ำ", GEM_THRESHOLD, 148, 176)
-    local settingMsg = textLabel("", 298, 20, 11, Color3.fromRGB(170, 170, 170))
-    button("บันทึกค่าการสุ่ม", 320, function()
+    textLabel("ตั้งค่าการสุ่ม", 18, 148, 304, 18, 12, Color3.fromRGB(255, 110, 110))
+    local mysticBox = textBox(18, 172, 145, "จำนวน Mystic", MYSTIC_STOP_AT)
+    local gemBox = textBox(177, 172, 145, "เพชรขั้นต่ำ", GEM_THRESHOLD)
+    local settingMsg = textLabel("", 18, 204, 170, 18, 10, Color3.fromRGB(170, 170, 170))
+    button("บันทึกค่าการสุ่ม", 190, 202, 132, function()
         local m, g = tonumber(mysticBox.Text), tonumber(gemBox.Text)
         if not m or not g or m < 1 or g < 0 then
-            settingMsg.Text, settingMsg.TextColor3 = "กรุณาใส่ตัวเลขที่ถูกต้อง", Color3.fromRGB(240, 100, 100)
+            settingMsg.Text, settingMsg.TextColor3 = "ตัวเลขไม่ถูกต้อง", Color3.fromRGB(240, 100, 100)
             return
         end
         MYSTIC_STOP_AT = math.clamp(math.floor(m), 1, 99)
         GEM_THRESHOLD = math.clamp(math.floor(g), 0, 100000000)
         saveSettings()
-        settingMsg.Text, settingMsg.TextColor3 = "บันทึกค่าการสุ่มแล้ว", Color3.fromRGB(110, 220, 130)
+        settingMsg.Text, settingMsg.TextColor3 = "บันทึกแล้ว", Color3.fromRGB(110, 220, 130)
     end)
 
-    textLabel("เปิด/ปิดการแจ้งเตือน Webhook", 360, 22, 13, Color3.fromRGB(255, 110, 110))
+    local st = textLabel("สถานะ: พร้อม", 18, 244, 304, 20, 11, Color3.fromRGB(175, 175, 175))
+    setStatus = function(t) st.Text = "สถานะ: " .. t end
+    local info = textLabel("", 18, 270, 304, 20, 10, Color3.fromRGB(255, 110, 110))
+    task.spawn(function()
+        while info.Parent do
+            local t = State.startedAt and math.max(0, os.time() - State.startedAt) or 0
+            info.Text = string.format("เวลา %02d:%02d:%02d | Mystic %d/%d | เพชร %d", t // 3600, (t % 3600) // 60, t % 60, State.mystics, MYSTIC_STOP_AT, gems())
+            task.wait(1)
+        end
+    end)
+
+    -- ฝั่งขวา: เลือกประเภทแจ้งเตือน
+    textLabel("เปิด/ปิดการแจ้งเตือน Webhook", 350, 12, 270, 20, 13, Color3.fromRGB(255, 110, 110))
     local names = {
-        {"แจ้งเตือนเมื่อได้ Mystic", "mystic"},
-        {"แจ้งเตือนเมื่อครบเป้าหมาย", "target"},
-        {"แจ้งเตือนเมื่อเริ่มทำงาน", "start"},
-        {"แจ้งเตือนเมื่อชนะด่าน", "win"},
-        {"แจ้งเตือนเมื่อจัดทีม", "team"},
-        {"แจ้งเตือนเมื่อเกิดข้อผิดพลาด", "error"},
+        {"ได้ Mystic", "mystic"}, {"ครบเป้าหมาย", "target"},
+        {"เริ่มทำงาน", "start"}, {"ชนะด่าน", "win"},
+        {"จัดทีม", "team"}, {"เกิดข้อผิดพลาด", "error"},
     }
     for i, item in ipairs(names) do
-        local y = 388 + (i - 1) * 30
-        textLabel(item[1], y + 3, 24, 11, Color3.fromRGB(205, 205, 205))
+        local y = 48 + (i - 1) * 38
+        textLabel(item[1], 350, y + 3, 190, 24, 12, Color3.fromRGB(215, 215, 215))
         local b = Instance.new("TextButton", body)
-        b.Size, b.Position = UDim2.fromOffset(54, 24), UDim2.new(1, -70, 0, y)
+        b.Size, b.Position = UDim2.fromOffset(62, 26), UDim2.fromOffset(550, y)
         b.Font, b.TextSize = Enum.Font.GothamBold, 11
         b.Text = Notify[item[2]] and "เปิด" or "ปิด"
         b.TextColor3, b.BackgroundColor3 = Color3.new(1, 1, 1), Notify[item[2]] and RED or Color3.fromRGB(45, 45, 45)
@@ -531,22 +540,10 @@ local function createMainUI(onToggle)
         end)
     end
 
-    local st = textLabel("สถานะ: พร้อม", 580, 20, 12, Color3.fromRGB(175, 175, 175))
-    setStatus = function(t) st.Text = "สถานะ: " .. t end
-    local info = textLabel("", 604, 20, 11, Color3.fromRGB(255, 110, 110))
-    task.spawn(function()
-        while info.Parent do
-            local t = State.startedAt and math.max(0, os.time() - State.startedAt) or 0
-            info.Text = string.format("เวลา %02d:%02d:%02d | Mystic %d/%d | เพชร %d",
-                t // 3600, (t % 3600) // 60, t % 60, State.mystics, MYSTIC_STOP_AT, gems())
-            task.wait(1)
-        end
-    end)
-
     local minimized = false
     minBtn.MouseButton1Click:Connect(function()
         minimized = not minimized
-        tween(main, 0.25, { Size = minimized and UDim2.fromOffset(340, 32) or UDim2.fromOffset(340, 640) })
+        tween(main, 0.25, { Size = minimized and UDim2.fromOffset(640, 32) or UDim2.fromOffset(640, 360) })
     end)
     closeBtn.MouseButton1Click:Connect(function()
         onToggle(false)
@@ -570,10 +567,9 @@ local function createMainUI(onToggle)
         end
     end)
 
-    scale.Scale, main.BackgroundTransparency, mainStroke.Transparency = 0.6, 1, 1
+    scale.Scale, main.BackgroundTransparency = 0.6, 1
     tween(scale, 0.45, { Scale = 1 }, Enum.EasingStyle.Back)
     tween(main, 0.45, { BackgroundTransparency = 0 })
-    tween(mainStroke, 0.45, { Transparency = 0 })
     return setOn
 end
 
