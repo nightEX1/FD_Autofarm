@@ -454,6 +454,7 @@ local function createMainUI(onToggle)
         b.Size, b.Position = UDim2.fromOffset(w, 28), UDim2.fromOffset(x, y)
         b.BackgroundColor3, b.TextColor3, b.PlaceholderText = Color3.fromRGB(16, 16, 16), Color3.new(1, 1, 1), placeholder
         b.Font, b.TextSize, b.ClearTextOnFocus, b.Text = Enum.Font.Gotham, 11, false, tostring(value or "")
+        b.TextXAlignment, b.TextWrapped, b.ClipsDescendants = Enum.TextXAlignment.Left, false, true
         Instance.new("UICorner", b).CornerRadius = UDim.new(0, 7)
         return b
     end
@@ -490,17 +491,17 @@ local function createMainUI(onToggle)
 
     textLabel("Discord Webhook", 18, 66, 300, 18, 11, Color3.fromRGB(190, 190, 190))
     local webhookBox = textBox(18, 86, 304, "Discord Webhook URL", State.webhook)
-    local webhookMsg = textLabel("", 18, 118, 170, 18, 10, Color3.fromRGB(170, 170, 170))
-    button("บันทึก Webhook", 190, 116, 132, function()
+    local webhookMsg = textLabel("", 18, 154, 304, 18, 10, Color3.fromRGB(170, 170, 170))
+    button("บันทึก Webhook", 18, 118, 304, function()
         local ok, msg = saveWebhook(webhookBox.Text)
         webhookMsg.Text, webhookMsg.TextColor3 = msg, ok and Color3.fromRGB(110, 220, 130) or Color3.fromRGB(240, 100, 100)
     end)
 
-    textLabel("ตั้งค่าการสุ่ม", 18, 148, 304, 18, 12, Color3.fromRGB(255, 110, 110))
-    local mysticBox = textBox(18, 172, 145, "จำนวน Mystic", MYSTIC_STOP_AT)
-    local gemBox = textBox(177, 172, 145, "เพชรขั้นต่ำ", GEM_THRESHOLD)
-    local settingMsg = textLabel("", 18, 204, 170, 18, 10, Color3.fromRGB(170, 170, 170))
-    button("บันทึกค่าการสุ่ม", 190, 202, 132, function()
+    textLabel("ตั้งค่าการสุ่ม", 18, 180, 304, 18, 12, Color3.fromRGB(255, 110, 110))
+    local mysticBox = textBox(18, 204, 145, "จำนวน Mystic", MYSTIC_STOP_AT)
+    local gemBox = textBox(177, 204, 145, "เพชรขั้นต่ำ", GEM_THRESHOLD)
+    local settingMsg = textLabel("", 18, 238, 170, 18, 10, Color3.fromRGB(170, 170, 170))
+    button("บันทึกค่าการสุ่ม", 190, 236, 132, function()
         local m, g = tonumber(mysticBox.Text), tonumber(gemBox.Text)
         if not m or not g or m < 1 or g < 0 then
             settingMsg.Text, settingMsg.TextColor3 = "ตัวเลขไม่ถูกต้อง", Color3.fromRGB(240, 100, 100)
@@ -512,9 +513,9 @@ local function createMainUI(onToggle)
         settingMsg.Text, settingMsg.TextColor3 = "บันทึกแล้ว", Color3.fromRGB(110, 220, 130)
     end)
 
-    local st = textLabel("สถานะ: พร้อม", 18, 244, 304, 20, 11, Color3.fromRGB(175, 175, 175))
+    local st = textLabel("สถานะ: พร้อม", 18, 276, 304, 20, 11, Color3.fromRGB(175, 175, 175))
     setStatus = function(t) st.Text = "สถานะ: " .. t end
-    local info = textLabel("", 18, 270, 304, 20, 10, Color3.fromRGB(255, 110, 110))
+    local info = textLabel("", 18, 302, 304, 20, 10, Color3.fromRGB(255, 110, 110))
     task.spawn(function()
         while info.Parent do
             local t = State.startedAt and math.max(0, os.time() - State.startedAt) or 0
