@@ -1406,7 +1406,7 @@ end
 --  * ตัวสนับสนุน: จุดที่ตัวดาเมจของเราอยู่ในระยะรวม dps มากที่สุด
 --  * จุดที่เกมเคยปฏิเสธอยู่ใน Match.refused (หมดอายุ 90 วิ) และใน RefusedStore ต่อแผนที่
 -- ผลลัพธ์แคชไว้ 6 วิ (ต่อ uuid) และใช้ซ้ำถ้าจำนวนยูนิตในสนามและโหมดไม่เปลี่ยน
-local function bestSpot(unit, mine, ctx)
+local function legacyBestSpot(unit, mine, ctx)
     local now = os.clock()
     local cache = Place.spotCache[unit.uuid]
     local mode = ctx and ctx.mode or ""
@@ -1499,7 +1499,103 @@ local function bestSpot(unit, mine, ctx)
     Place.spotCache[unit.uuid] = { n = #mine, t = os.clock(), pos = bestPos, score = bestScore, mode = mode }
     return bestPos, bestScore
 end
-Match.bestSpot = bestSpot
+-- Match.bestSpot จะถูกผูกกับ sourceBestSpot ด้านล่างแทนระบบ legacy
+
+-- ===== Active placement port จาก src Match.bestSpot =====
+-- ลำดับเดียวกับต้นฉบับ: control/hold -> layout/kill-zone -> fast -> fallback
+-- ใช้เฉพาะ adapter ของไฟล์นี้แทน Units/Brain/Simulator ที่อยู่ใน source เดิม
+local function sourcePickSpot(unit, mine, ctx, scorer)
+    local bestPos, bestScore
+    for ci, candidate in ipairs(Place.cands) do
+        local pos = validSpot(candidate, unit.data, mine)
+        if pos then
+            local score = scorer(pos, ci)
+            if score and (not bestScore or score > bestScore) then
+                bestPos, bestScore = pos, score
+            end
+        end
+        if ci % 40 == 0 then task.wait() end
+    end
+    return bestPos, bestScore
+end
+
+local function sourceBestSpot(unit, mine, ctx)
+    local now = os.clock()
+    local mode = ctx and ctx.mode or "source"
+    local cache = Place.spotCache[unit.uuid]
+    if cache and cache.n == #mine and cache.mode == mode and now - cache.t < 4 then
+        if cache.pos and not refusedNow(cache.pos) then return cache.pos, cache.score end
+        if not cache.pos then return nil end
+    end
+
+    local farm = isFarm(unit.id)
+    local support = not farm and isSupportUnit(unit.data)
+    local range = unitRange(unit.data)
+    local cov = ctx and ctx.cov or coverCounts(mine)
+    local wmul = ctx and ctx.wmul or nil
+    local function remember(pos, score)
+        Place.spotCache[unit.uuid] = { n = #mine, t = now, pos = pos, score = score, mode = mode }
+        return pos, score
+    end
+
+    -- src controlSpot: ตัวดาเมจตัวแรกคุมช่วงกลางทาง ไม่แย่งจุดท้ายกับตัวหลัก
+    if not farm and not support and ctx and ctx.plan == "mid" then
+        local pos, score = sourcePickSpot(unit, mine, ctx, function(p, ci)
+            local prog = nearestRoadProgress(p)
+            local cover = scoreList(candCover(ci, p, range), cov, wmul)
+            return cover + math.max(0, 30 - math.abs(prog - 0.5) * 100)
+        end)
+        if pos then return remember(pos, score) end
+    end
+
+    -- src holdSpot: ยูนิตบัพ/คุมเกมยืนในตำแหน่งที่หนุน attacker ได้ดีที่สุด
+    if support then
+        local attackers = {}
+        for _, u in ipairs(mine) do
+            pcall(function()
+                local id = u._stats.id.Value
+                local d = Game.Units[id]
+                if d and not isFarm(id) and not isSupportUnit(d) then
+                    local up = type(d.upgrade) == "table" and d.upgrade[#d.upgrade] or nil
+                    local dmg = tonumber(up and up.damage) or tonumber(d.damage) or 0
+                    local cd = tonumber(up and (up.attack_cooldown or up.cooldown)) or tonumber(d.attack_cooldown) or 1
+                    attackers[#attackers + 1] = { p = flat(u:GetPivot().Position), dps = dmg / math.max(cd, 0.5) }
+                end
+            end)
+        end
+        if #attackers > 0 then
+            local pos, score = sourcePickSpot(unit, mine, ctx, function(p)
+                local fp, v = flat(p), 0
+                for _, a in ipairs(attackers) do
+                    if (a.p - fp).Magnitude <= range then v += a.dps end
+                end
+                if ctx.plan == "late" then v += nearestRoadProgress(p) * 100 end
+                return v > 0 and v or nil
+            end)
+            if pos then return remember(pos, score) end
+        end
+    end
+
+    -- src kill-zone: stack damage in the last stretch once the core is ready
+    if not farm and ctx and ctx.plan == "late" then
+        local pos, score = sourcePickSpot(unit, mine, ctx, function(p, ci)
+            local prog = nearestRoadProgress(p)
+            local cover = scoreList(candCover(ci, p, range), cov, wmul)
+            return cover + prog * 80 + (prog >= 0.7 and 30 or 0)
+        end)
+        if pos then return remember(pos, score) end
+    end
+
+    -- src fallback: farm/entry/กรณีไม่มี special spot ใช้ coverage ปกติ
+    local pos, score = sourcePickSpot(unit, mine, ctx, function(p, ci)
+        local base = scoreList(candCover(ci, p, range), cov, wmul)
+        if farm then return -base end
+        return base + sourceSpotBonus(p, range, ctx, false)
+    end)
+    return remember(pos, score)
+end
+
+Match.bestSpot = sourceBestSpot
 
 local function lookAt(pos)
     local nearest, d = nil, math.huge
