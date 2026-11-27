@@ -1050,7 +1050,7 @@ local Place = {
     noSpot = {},    -- uuid -> { n = จำนวนครั้งที่หาจุดไม่ได้, t = เวลา }
     placeFail = {}, pending = {}, sold = {}, spotCache = {}, upFail = {},
     cap = nil, capAt = 0, failStreak = 0,
-    coverCache = {}, escalated = false,
+    coverCache = {}, escalated = false, placeStreak = 0,
 }
 local Match = Place
 
@@ -1525,6 +1525,7 @@ local function prepareMatch()
     Place.sold, Place.spotCache, Place.upFail, Place.coverCache = {}, {}, {}, {}
     Place.escalated = false
     Place.cap, Place.failStreak = nil, 0
+    Place.placeStreak = 0
     Place.matchId += 1
     Place.mapKey = currentMapKey()
     Place.ready = true
@@ -1833,6 +1834,7 @@ function Economy.snapshot()
         wmul = wmul, mode = mode, layout = layout, plan = plan, fastFill = fastFill,
         mine = mine, byUuid = byUuid, cov = cov, dens = em.dens,
         fieldFull = #mine >= FIELD_MAX or (Place.cap ~= nil and #mine >= Place.cap),
+        placeStreak = Place.placeStreak or 0,
         countsByUuid = countsByUuid,
         spotBudget = ECON.SPOT_BUDGET, incomplete = false,
     }
@@ -1865,6 +1867,7 @@ function Match.place(unit, reason, ctx)
             if mk and mk[spotKey(pos)] then mk[spotKey(pos)] = nil saveRefused() end -- วางสำเร็จ = จุดนี้ใช้ได้ ลบออกจากรายการแบน
             Place.spotCache = {} -- ยูนิตใหม่เปลี่ยน coverage ทุกจุด ให้ทุกตัวหาจุดใหม่
             Place.pending[unit.uuid], Place.failStreak = nil, 0
+            Place.placeStreak = (Place.placeStreak or 0) + 1
             print(string.format("[FD] วาง %s (%s) ที่ %s คะแนน %.1f", tostring(unit.id), tostring(reason), spotKey(pos), score or 0))
             return true
         end
@@ -2041,6 +2044,10 @@ function Economy.options(ctx)
                 o.value *= 2.2 + missing * 1.8
             end
             if ctx.leak and not isFarm(o.unit.id) then o.value *= 2 end -- มีตัวหลุด: วางตัวใหม่ขวางหน้าก่อนอัปเกรด
+            if ctx.placeStreak >= 2 then
+                -- วางได้ไม่เกิน 2 action ติดกัน ถ้ามี upgrade ที่ซื้อได้ให้สลับไปอัปเกรด
+                o.value *= 0.12
+            end
         end
         if o.kind == "place" and o.value <= 0 then o.value = 1e-6 end -- กันค้าง: ยังไงก็ให้วางตัวที่เหลือได้เมื่อไม่มีอะไรดีกว่า
     end
@@ -2143,6 +2150,7 @@ function Economy.act(action, ctx)
         if changed or (ok and res) then
             say("อัปเกรด " .. tostring(action.unit.id) .. " แล้วประเมินใหม่")
             Place.spotCache = {} -- ระยะ/coverage เปลี่ยน
+            Place.placeStreak = 0
             task.wait(0.15)
             return true
         end
