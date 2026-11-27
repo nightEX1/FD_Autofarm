@@ -39378,86 +39378,22 @@ function GUI.load()
     return result
 end
 
--- Thai UI localisation and branding.
-GUI.LOGO_ASSET = "rbxassetid://78028716933387"
-GUI.TH = {
-    Home="หน้าหลัก", Farm="ฟาร์ม", Units="ยูนิต", Battle="ต่อสู้", Activity="กิจกรรม", Settings="ตั้งค่า",
-    Stages="ด่าน", Challenges="ชาเลนจ์", Events="อีเวนต์", Party="ปาร์ตี้", Rules="กฎการฟาร์ม",
-    Goals="เป้าหมาย", Upgrades="อัปเกรด", Summon="สุ่มยูนิต", Fusion="ฟิวชัน", Study="วิเคราะห์",
-    Controls="ควบคุม", Planner="วางแผนทีม", Economy="เศรษฐกิจ", Log="บันทึก", Spending="ประวัติการใช้จ่าย",
-    History="ประวัติ", Systems="ระบบ", General="ทั่วไป", Profiles="โปรไฟล์", Theme="ธีม", Updates="อัปเดต",
-    Overview="ภาพรวม", Details="รายละเอียด", Left="ซ้าย", Right="ขวา", Enabled="เปิดใช้งาน", Disabled="ปิดใช้งาน",
-    ["Only this mode"]="โหมดนี้เท่านั้น", ["Smart"]="อัจฉริยะ", ["Smart Play"]="เล่นอัจฉริยะ",
-    ["Farm control"]="ควบคุมฟาร์ม", ["Current run"]="รอบปัจจุบัน", ["Session"]="เซสชัน",
-    ["Automation status"]="สถานะระบบอัตโนมัติ", ["Mode selection"]="เลือกโหมด", ["Story & Legend"]="เนื้อเรื่องและตำนาน",
-    ["Infinite & Portals"]="อินฟินิตี้และพอร์ทัล", ["Raids & Dungeon"]="เรดและดันเจี้ยน",
-    ["Challenge rules"]="กฎชาเลนจ์", ["Find players"]="ค้นหาผู้เล่น", ["Skins & stars"]="สกินและดาว",
-    ["Event progress"]="ความคืบหน้าอีเวนต์", ["Mode ranking"]="จัดอันดับโหมด", ["Completed runs"]="รอบที่จบแล้ว",
-    ["Mode priorities"]="ลำดับความสำคัญของโหมด", ["Current goal"]="เป้าหมายปัจจุบัน", ["Ready to evolve"]="พร้อมวิวัฒนาการ",
-    ["Evolution paths"]="เส้นทางวิวัฒนาการ", ["Takedown training"]="ฝึกกำจัดศัตรู", ["Goal priorities"]="ลำดับเป้าหมาย",
-    ["Recommendations"]="คำแนะนำ", ["Team upgrades"]="อัปเกรดทีม", ["Core units"]="ยูนิตหลัก", ["XP food"]="อาหาร XP",
-    ["Relics & limit breaks"]="รีลิกและลิมิตเบรก", ["Upgrade rules"]="กฎการอัปเกรด", ["Banner snipe"]="สุ่มหาเป้าหมาย",
-    ["Repeat summons"]="สุ่มซ้ำ", ["Goal summons"]="สุ่มตามเป้าหมาย", ["Animations"]="แอนิเมชัน",
-    ["Limit break"]="ลิมิตเบรก", ["Fuse for XP"]="ฟิวส์เพื่อ XP", ["Battle automation"]="ระบบต่อสู้อัตโนมัติ",
-    ["Equipped units"]="ยูนิตที่ใส่อยู่", ["Team planning"]="วางแผนทีม", ["Farm income"]="รายได้ฟาร์ม",
-    ["Live log"]="บันทึกแบบสด", ["Subsystems"]="ระบบย่อย", ["Spending summary"]="สรุปการใช้จ่าย",
-    ["History tools"]="เครื่องมือประวัติ", ["Planner tools"]="เครื่องมือวางแผน", ["Daily challenge"]="ชาเลนจ์รายวัน",
-    ["Snipe budget"]="งบสุ่ม", ["Defense thresholds"]="เกณฑ์ป้องกัน", ["Logging"]="การบันทึก",
-    ["Script"]="สคริปต์", ["Gold shop"]="ร้านทอง", ["Study a unit"]="วิเคราะห์ยูนิต",
-    ["Saved profiles"]="โปรไฟล์ที่บันทึก", Appearance="รูปลักษณ์", ["No completed runs yet."]="ยังไม่มีรอบที่จบ",
-    ["Waiting for game data."]="กำลังรอข้อมูลจากเกม…", ["Nothing logged yet"]="ยังไม่มีบันทึก",
-    ["Return to lobby"]="กลับล็อบบี้", ["Resume after lobby hold"]="เริ่มฟาร์มต่อหลังพักที่ล็อบบี้",
-    ["Start Farming Again"]="เริ่มฟาร์มอีกครั้ง", ["Go To Lobby"]="ไปล็อบบี้", ["Unload"]="ปิดสคริปต์",
-    ["Reset Mode Stats"]="รีเซ็ตสถิติโหมด", ["Pick The Core Units Again"]="เลือกยูนิตหลักใหม่",
-    ["Simulate Now"]="จำลองตอนนี้", ["Equip Best Team"]="ใส่ทีมที่ดีที่สุด", ["Restore My Team"]="คืนทีมเดิม",
-    ["Reset Unit Learning"]="รีเซ็ตข้อมูลเรียนรู้ยูนิต", ["Start Study"]="เริ่มวิเคราะห์", ["Stop Study"]="หยุดวิเคราะห์",
-    ["Save Settings"]="บันทึกการตั้งค่า", ["Auto Farm"]="ฟาร์มอัตโนมัติ", ["Auto Play"]="เล่นอัตโนมัติ",
-    ["Story map"]="แผนที่เนื้อเรื่อง", ["Legend stage"]="ด่านตำนาน", ["Infinite map"]="แผนที่อินฟินิตี้",
-    ["Target evolution"]="วิวัฒนาการเป้าหมาย", ["Train takedowns"]="ฝึกกำจัดศัตรู", ["Automatic upgrades"]="อัปเกรดอัตโนมัติ",
-    ["Feed XP food"]="ใช้ยูนิตอาหารเพิ่ม XP", ["Buy XP food"]="ซื้ออาหาร XP", ["Target unit"]="ยูนิตเป้าหมาย",
-    ["Enable limit break"]="เปิดใช้ลิมิตเบรก", ["Unit to level"]="ยูนิตที่จะเพิ่มเลเวล", ["Maximum fodder rarity"]="ระดับความหายากอาหารสูงสุด",
-    ["Enable XP fusion"]="เปิดใช้ฟิวชัน XP", ["Equip planned team"]="ใส่ทีมตามแผน", ["Recalculate plan"]="คำนวณแผนใหม่",
-    ["Open Sunny Stars"]="เปิด Sunny Stars", ["Study runs"]="จำนวนรอบวิเคราะห์",
-    ["Search"]="ค้นหา", ["State"]="สถานะ", ["Wave progress"]="ความคืบหน้าคลื่น", ["Next run"]="รอบถัดไป",
-    ["Unavailable modes"]="โหมดที่ยังเล่นไม่ได้", ["Prediction"]="การคาดการณ์", ["Requirements"]="เงื่อนไข",
-}
-function GUI.t(value)
-    local text = tostring(value or "")
-    return GUI.TH[text] or text
-end
-function GUI.applyBoldFont(window)
-    local root = window and window.Root
-    if not root then return end
-    local function apply(node)
-        if node:IsA("TextLabel") or node:IsA("TextButton") or node:IsA("TextBox") then
-            pcall(function() node.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal) end)
-            pcall(function() node.Font = Enum.Font.GothamBold end)
-        end
-        for _, child in ipairs(node:GetChildren()) do apply(child) end
-    end
-    task.defer(function() apply(root) end)
-    if not GUI._boldConnection then
-        GUI._boldConnection = root.DescendantAdded:Connect(function(node)
-            task.defer(function() apply(node) end)
-        end)
-    end
-end
 function GUI.escape(value)
     return (tostring(value or ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
 end
 
 function GUI.theme(Airflow)
     local theme = {
-        Background = Color3.fromHex("#0A0A0C"),
-        Surface = Color3.fromHex("#141418"),
-        Surface2 = Color3.fromHex("#1A1A20"),
-        Surface3 = Color3.fromHex("#2A2A33"),
-        Stroke = Color3.fromHex("#FF1E1E"),
-        StrokeHover = Color3.fromHex("#FF5A5A"),
-        Accent = Color3.fromHex("#FF1E1E"),
-        AccentDark = Color3.fromHex("#1A0505"),
-        Text = Color3.fromHex("#F5F5F7"),
-        Muted = Color3.fromHex("#8D8D99"),
+        Background = Color3.fromHex("#08080A"),
+        Surface = Color3.fromHex("#0F0F13"),
+        Surface2 = Color3.fromHex("#16161C"),
+        Surface3 = Color3.fromHex("#22222B"),
+        Stroke = Color3.fromHex("#3A1317"),
+        StrokeHover = Color3.fromHex("#FF3B3B"),
+        Accent = Color3.fromHex("#FF2D2D"),
+        AccentDark = Color3.fromHex("#1C0507"),
+        Text = Color3.fromHex("#F7F7F9"),
+        Muted = Color3.fromHex("#9A9AA6"),
     }
     Airflow.ThemePresets.DKHUB = theme
     Airflow:SetDefaultTheme(theme)
@@ -39658,15 +39594,15 @@ GUI.PAGE_HELP = {
 function GUI.prepareNavigation(window)
     GUI.Nav, GUI.Blocks = {}, {}
     for _, section in ipairs(GUI.NAV_SCHEMA) do
-        local root = window:CreateTab({ Name = GUI.t(section.Name), Icon = section.Icon })
+        local root = window:CreateTab({ Name = section.Name, Icon = section.Icon })
         local entry = { Root = root, Pages = {} }
         GUI.Nav[section.Name] = entry
         if section.Pages then
             for _, spec in ipairs(section.Pages) do
                 entry.Pages[spec[1]] = root:CreateSubTab({
-                    Name = GUI.t(spec[1]), Icon = spec[2],
+                    Name = spec[1], Icon = spec[2],
                     EmptyText = section.Name == "Farm" and spec[1] == "Events"
-                        and GUI.t("No supported event is currently available.") or GUI.t("Waiting for game data."),
+                        and "No supported event is currently available." or "Waiting for game data.",
                 })
             end
         else
@@ -39682,7 +39618,7 @@ function GUI.block(rootName, pageName, title, side, collapsed)
     if GUI.Blocks[id] then return GUI.Blocks[id] end
     local entry = assert(GUI.Nav[rootName], "Unknown navigation section: " .. rootName)
     local host = assert(entry.Pages[pageName], "Unknown page: " .. pageName)
-    local group = host:CreateGroupbox({ Name = GUI.t(title), Side = side or "Left", Collapsed = collapsed == true })
+    local group = host:CreateGroupbox({ Name = title, Side = side or "Left", Collapsed = collapsed == true })
     GUI.Blocks[id] = group
     return group
 end
@@ -39707,7 +39643,7 @@ function GUI.controlText(name, description)
     local entry = GUI.SHORT_TEXT[name]
     local short = entry and entry[2] or description or ""
     if #short > 82 then short = "" end
-    return GUI.t(entry and entry[1] or name), GUI.t(short)
+    return entry and entry[1] or name, short
 end
 
 function GUI.controlDependency(name)
@@ -39767,7 +39703,7 @@ end
 function GUI.paragraph(group, text, title)
     local native
     if title and title ~= "" then
-        native = group:CreateParagraph({ Title = GUI.escape(GUI.t(title)), Content = GUI.escape(GUI.t(text)) })
+        native = group:CreateParagraph({ Title = GUI.escape(title), Content = GUI.escape(text) })
     else
         native = group:CreateLabel({ Text = GUI.escape(text), Visible = text ~= nil and text ~= "" })
     end
@@ -40125,18 +40061,173 @@ function GUI.page(window, name, icon)
     return page
 end
 
+-- DKHUB branding: animated red window border and a draggable logo button that
+-- shows/hides the window. Built with plain Instances, so it does not depend on
+-- the UI library's own options. Every step is wrapped in pcall.
+function GUI.brand()
+    local TweenService = game:GetService("TweenService")
+    local UserInputService = game:GetService("UserInputService")
+    local LOGO = "rbxassetid://78028716933387"
+    local RED = Color3.fromHex("#FF2D2D")
+    local DARK = Color3.fromHex("#5A0A0A")
+
+    local function containers()
+        local list = {}
+        if type(gethui) == "function" then
+            local ok, hui = pcall(gethui)
+            if ok and hui then table.insert(list, hui) end
+        end
+        local okc, core = pcall(function() return game:GetService("CoreGui") end)
+        if okc and core then table.insert(list, core) end
+        local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+        if pg then table.insert(list, pg) end
+        return list
+    end
+
+    local function findWindow()
+        for _, root in ipairs(containers()) do
+            local okd, all = pcall(root.GetDescendants, root)
+            if okd then
+                for _, d in ipairs(all) do
+                    if d:IsA("TextLabel") and string.find(d.Text, GUI.TITLE, 1, true) then
+                        local gui = d:FindFirstAncestorWhichIsA("ScreenGui")
+                        if gui and gui.Name ~= "DKHUB_Badge" then
+                            local node = d.Parent
+                            while node and node ~= gui do
+                                if node:IsA("GuiObject") and node.AbsoluteSize.X >= 320 and node.AbsoluteSize.Y >= 240 then
+                                    return node, gui
+                                end
+                                node = node.Parent
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return nil, nil
+    end
+
+    local function styleWindow(frame)
+        if frame:FindFirstChild("DKHUB_Border") then return end
+        local stroke = Instance.new("UIStroke")
+        stroke.Name = "DKHUB_Border"
+        stroke.Thickness = 2
+        stroke.Color = RED
+        stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        stroke.Parent = frame
+        local grad = Instance.new("UIGradient")
+        grad.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, RED),
+            ColorSequenceKeypoint.new(0.5, DARK),
+            ColorSequenceKeypoint.new(1, RED),
+        })
+        grad.Parent = stroke
+        TweenService:Create(grad, TweenInfo.new(5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), { Rotation = 360 }):Play()
+        if not frame:FindFirstChildOfClass("UICorner") then
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 12)
+            corner.Parent = frame
+        end
+    end
+
+    local function makeBadge(windowGui)
+        local places = containers()
+        for _, root in ipairs(places) do
+            local old = root:FindFirstChild("DKHUB_Badge")
+            if old then old:Destroy() end
+        end
+        local gui = Instance.new("ScreenGui")
+        gui.Name = "DKHUB_Badge"
+        gui.ResetOnSpawn = false
+        gui.IgnoreGuiInset = true
+        gui.DisplayOrder = 999
+        if type(syn) == "table" and syn.protect_gui then pcall(syn.protect_gui, gui) end
+        gui.Parent = places[1]
+
+        local button = Instance.new("ImageButton")
+        button.Name = "Logo"
+        button.Size = UDim2.fromOffset(54, 54)
+        button.Position = UDim2.new(0, 14, 0.5, -27)
+        button.BackgroundColor3 = Color3.fromHex("#08080A")
+        button.AutoButtonColor = false
+        button.Image = LOGO
+        button.ScaleType = Enum.ScaleType.Crop
+        button.Parent = gui
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = button
+        local stroke = Instance.new("UIStroke")
+        stroke.Thickness = 2.5
+        stroke.Color = RED
+        stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        stroke.Parent = button
+
+        local dragging, moved, dragStart, startPos = false, false, nil, nil
+        local function isPointer(input)
+            return input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch
+        end
+        local conns = {}
+        table.insert(conns, button.InputBegan:Connect(function(input)
+            if isPointer(input) then
+                dragging, moved = true, false
+                dragStart, startPos = input.Position, button.Position
+            end
+        end))
+        table.insert(conns, UserInputService.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local delta = input.Position - dragStart
+                if delta.Magnitude > 6 then moved = true end
+                if moved then
+                    button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                end
+            end
+        end))
+        table.insert(conns, UserInputService.InputEnded:Connect(function(input)
+            if dragging and isPointer(input) then
+                dragging = false
+                if not moved then
+                    if windowGui and windowGui.Parent then
+                        windowGui.Enabled = not windowGui.Enabled
+                    else
+                        pcall(function()
+                            local vim = game:GetService("VirtualInputManager")
+                            vim:SendKeyEvent(true, Enum.KeyCode.RightControl, false, game)
+                            vim:SendKeyEvent(false, Enum.KeyCode.RightControl, false, game)
+                        end)
+                    end
+                end
+            end
+        end))
+        task.spawn(function()
+            while App.alive and gui.Parent do task.wait(1) end
+            for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
+            pcall(function() gui:Destroy() end)
+        end)
+    end
+
+    local frame, windowGui
+    for _ = 1, 30 do
+        if not App.alive then return end
+        local okf, f, g = pcall(findWindow)
+        if okf and f then frame, windowGui = f, g break end
+        task.wait(1)
+    end
+    if frame then pcall(styleWindow, frame) end
+    pcall(makeBadge, windowGui)
+end
+
 function GUI.window(Airflow)
     local window = Airflow:CreateWindow({
         Name = GUI.TITLE, LoadingSubtitle = GUI.TITLE .. " · v" .. VERSION,
-        Icon = GUI.LOGO_ASSET, Logo = GUI.LOGO_ASSET,
+        Icon = "rbxassetid://78028716933387", LogoIcon = "rbxassetid://78028716933387",
         ToggleUIKeybind = "RightControl", Size = UDim2.fromOffset(900, 620), AdaptiveSize = true, Density = "Default",
         Backdrop = { Weather = "Fireflies", Tint = 0.35 }, Theme = GUI.THEME,
         ConfigurationSaving = { Enabled = true, FolderName = Core.FOLDER .. "/Airflow" },
         Home = false,
     })
     GUI.NativeWindow = window
+    task.spawn(function() pcall(GUI.brand) end)
     GUI.prepareNavigation(window)
-    GUI.applyBoldFont(window)
     GUI.skipInfo = GUI.paragraph(GUI.block("Farm", "Rules", "Unavailable modes", "Right"), "Waiting for the first plan.")
     local controller = { Native = window }
     function controller:Tab(_, name)
@@ -40157,7 +40248,7 @@ function GUI.window(Airflow)
     end
     function controller:Notify(title, text, duration, tone)
         local tones = { success = "Success", warning = "Warning", error = "Error", default = "Info" }
-        return window:Notify({ Title = GUI.escape(GUI.t(title)), Content = GUI.escape(GUI.t(text)), Duration = duration or 4, Type = tones[tone] or "Info" })
+        return window:Notify({ Title = GUI.escape(title), Content = GUI.escape(text), Duration = duration or 4, Type = tones[tone] or "Info" })
     end
     function controller:Destroy()
         -- Airflow turns live toggles off during Destroy. Silence that UI teardown
@@ -40178,7 +40269,7 @@ end
 
 function GUI.activity(page)
     GUI.activityLog = page:Group():CreateLog({
-        Name = GUI.t("Activity"), MaxEntries = 250, MaxRows = 14,
+        Name = "Activity", MaxEntries = 250, MaxRows = 14,
         Timestamps = false, EmptyText = "Nothing logged yet",
     })
     for _, line in ipairs(LogBuffer.lines) do GUI.activityLog:Push(GUI.escape(line)) end
