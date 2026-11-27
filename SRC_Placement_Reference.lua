@@ -1,12 +1,407 @@
 --[[
-    SRC Placement Reference
-    Extracted from AnimeAdventures.lua: Match.bestSpot / Match.lookAt / Match.place / Match.count
-    This file is a reference extract from the original src and depends on the original
-    Units, Core, Brain, App, Utils and Match runtime modules. The active executor file
-    uses the compatible adapter in DKHUB_Autofarm1.lua because those modules are not
-    available under the same names outside the original script.
+    RobScript Placement Extract
+    Exact function bodies extracted from AnimeAdventures.lua (RobScript):
+    Match.setupChecks, Match.valid, Match.buildCandidates, Match.coverage,
+    Match.cover, Match.controlSpot, Match.holdSpot, Match.bestSpot,
+    Match.lookAt, Match.place and Match.count.
+
+    This is the original source extract for reference/integration. It depends on
+    the original RobScript runtime modules (Units, Core, Brain, App, Utils,
+    Simulator and Match state) and is not a standalone executor script.
 ]]
 
+-- ===== source line 32183: Match.setupChecks =====
+function Match.setupChecks()
+    Match.probe = Instance.new("Part")
+    Match.probe.Name = "_aa_probe"
+    Match.probe.Anchored = true
+    Match.probe.CanCollide = false
+    Match.probe.CanTouch = false
+    Match.probe.CanQuery = false
+    Match.probe.Transparency = 1
+    Match.probe.Parent = workspace:FindFirstChild("ignore") or workspace
+    local dGb = ReplicatedStorage:FindFirstChild("_bounds")
+    Match.bounds = Instance.new("Folder")
+    Match.bounds.Name = "_aa_bounds"
+    if dGb then
+        for eGb, fGb in ipairs(dGb:GetDescendants()) do
+            if fGb:IsA("BasePart") then
+                local gGb = fGb:Clone()
+                for hGb, iGb in ipairs(gGb:GetChildren()) do
+                    iGb:Destroy()
+                end
+                gGb.Anchored = true
+                gGb.CanCollide = false
+                gGb.CanTouch = false
+                gGb.CanQuery = true
+                gGb.Transparency = 1
+                gGb.CFrame = fGb.CFrame
+                gGb.Parent = Match.bounds
+            end
+        end
+    end
+    Match.bounds.Parent = workspace:FindFirstChild("ignore") or workspace
+    Match.overlap = OverlapParams.new()
+    Match.overlap.FilterType = Enum.RaycastFilterType.Include
+    Match.overlap.FilterDescendantsInstances = {
+        workspace._road,
+        Match.bounds
+    }
+end
+
+-- ===== source line 32238: Match.valid =====
+function Match.valid(nGb, oGb)
+    local pGb = Core.PC.raycast(nGb + Vector3.new(0, 40, 0), Vector3.new(0, - 120, 0))
+    if not pGb then
+        return nil
+    end
+    if not Core.PC.is_valid_raycast_hit(pGb.Instance, oGb) then
+        return nil
+    end
+    local qGb = pGb.Position
+    if Match.blockedSpot(qGb) then
+        return nil
+    end
+    local rGb = (tonumber(oGb.override_hitbox_radius) or 1.5) + 0.25
+    Match.probe.Size = Vector3.new(rGb * 2, 2.5, rGb * 2)
+    Match.probe.CFrame = CFrame.new(qGb + Vector3.new(0, 1.35, 0))
+    if # workspace:GetPartsInPart(Match.probe, Match.overlap) > 0 then
+        return nil
+    end
+    for sGb, tGb in ipairs(Match.mine or {
+    }) do
+        local uGb = tGb:FindFirstChild("_hitbox")
+        local vGb = uGb and uGb.Position or tGb:GetPivot().Position
+        local wGb = uGb and math.max(uGb.Size.X, uGb.Size.Z) / 2 or 1.5
+        if (Utils.flat(qGb) - Utils.flat(vGb)).Magnitude < rGb + wGb then
+            return nil
+        end
+    end
+    return qGb
+end
+
+-- ===== source line 32268: Match.buildCandidates =====
+function Match.buildCandidates()
+    Match.cands = {
+    }
+    local xGb = {
+    }
+    for yGb = 1, # Match.samples, 3 do
+        local zGb = Match.samples [yGb]
+        local AGb = Match.samples [math.min(# Match.samples, yGb + 1)]
+        local BGb = Utils.flat(AGb.pos - zGb.pos)
+        if BGb.Magnitude < 0.01 then
+            BGb = Vector3.new(1, 0, 0)
+        end
+        BGb = BGb.Unit
+        local CGb = Vector3.new(- BGb.Z, 0, BGb.X)
+        for DGb, EGb in ipairs({
+            3,
+            4.5,
+            6,
+            8,
+            10.5,
+            13.5,
+            17
+        }) do
+            for FGb, GGb in ipairs({
+                1,
+                - 1
+            }) do
+                local HGb = zGb.pos + CGb * EGb * GGb
+                local IGb = string.format("%d,%d", math.floor(HGb.X / 1.5), math.floor(HGb.Z / 1.5))
+                if not xGb [IGb] then
+                    xGb [IGb] = true
+                    table.insert(Match.cands, HGb)
+                end
+            end
+        end
+    end
+end
+
+-- ===== source line 32306: Match.coverage =====
+function Match.coverage(JGb, KGb)
+    local LGb = {
+    }
+    for MGb, NGb in ipairs(JGb) do
+        local OGb = NGb._stats
+        if not Units.isFarm(OGb.id.Value) and OGb:FindFirstChild("range") then
+            table.insert(LGb, {
+                p = Utils.flat(NGb:GetPivot().Position),
+                r = OGb.range.Value * (Units.SUMMONER [OGb.id.Value] and Units.SUMMONER [OGb.id.Value].reach or 1),
+                air = Match.canAir(NGb)
+            })
+        end
+    end
+    local PGb, QGb = 0, 0
+    if # LGb > 0 then
+        for RGb, SGb in ipairs(Match.samples) do
+            if SGb.prog > QGb then
+                local TGb = Utils.flat(SGb.pos)
+                for UGb, VGb in ipairs(LGb) do
+                    if (TGb - VGb.p).Magnitude <= VGb.r then
+                        if SGb.prog > PGb then
+                            PGb = SGb.prog
+                        end
+                        if VGb.air then
+                            QGb = SGb.prog
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+    local WGb, XGb = {
+    }, Match.laneCount
+    if XGb and XGb.n >= 2 and # LGb > 0 then
+        local YGb = {
+        }
+        for ZGb, _Gb in ipairs(Match.samples) do
+            local aHb = Utils.flat(_Gb.pos)
+            for bHb, cHb in ipairs(LGb) do
+                if (aHb - cHb.p).Magnitude <= cHb.r then
+                    local dHb = tostring(_Gb.lane)
+                    YGb [dHb] = (YGb [dHb] or 0) + 1
+                    if _Gb.prog > (WGb [dHb] or 0) then
+                        WGb [dHb] = _Gb.prog
+                    end
+                    break
+                end
+            end
+        end
+        local eHb, fHb = {
+        }, 0
+        for gHb, hHb in pairs(XGb.by) do
+            eHb [gHb] = (YGb [gHb] or 0) / math.max(1, hHb)
+            fHb = math.max(fHb, eHb [gHb])
+        end
+        Match.laneW = {
+        }
+        for iHb, jHb in pairs(XGb.by) do
+            Match.laneW [iHb] = (XGb.avg / math.max(1, jHb)) * (1 + 1.5 * (fHb > 0 and (1 - eHb [iHb] / fHb) or 0))
+        end
+        Match.laneFrac = eHb
+    else
+        Match.laneW, Match.laneFrac = nil, nil
+    end
+    local kHb, lHb, mHb
+    if # LGb > 0 then
+        for nHb, oHb in ipairs(KGb) do
+            local pHb = (Match.laneW and oHb.lane and WGb [oHb.lane]) or PGb
+            if oHb.hp > 0 and oHb.prog > pHb + 0.02 and oHb.prog > (kHb or 0) then
+                kHb, mHb = oHb.prog, Match.laneW and oHb.lane or nil
+            end
+            if oHb.hp > 0 and oHb.fly and oHb.prog > QGb + 0.02 then
+                lHb = true
+            end
+        end
+    end
+    local qHb = # LGb > 0 and (Match.pressure or 0) >= PGb - 0.08
+    return {
+        covEnd = PGb,
+        airEnd = QGb,
+        leak = kHb,
+        leakLane = mHb,
+        covL = WGb,
+        airLeak = lHb,
+        push = qHb,
+        units = # LGb
+    }
+end
+
+-- ===== source line 32498: Match.cover =====
+function Match.cover(WHb, XHb, YHb, ZHb)
+    local _Hb = 0
+    local aIb = Utils.flat(WHb)
+    local bIb = YHb and Brain.maps [Match.mapKey()] and Brain.maps [Match.mapKey()].dens
+    local cIb = Match.laneW
+    for dIb, eIb in ipairs(Match.samples) do
+        if (Utils.flat(eIb.pos) - aIb).Magnitude <= XHb then
+            local fIb = 1
+            if bIb then
+                fIb = 0.15 + 0.85 * (tonumber(bIb [math.min(Simulator.BINS, math.floor(eIb.prog * Simulator.BINS) + 1)]) or 0)
+            end
+            if cIb then
+                fIb = fIb * (cIb [tostring(eIb.lane)] or 1)
+            end
+            if ZHb then
+                if ZHb.leak and eIb.prog >= ZHb.leak - 0.01 and (not ZHb.leakLane or tostring(eIb.lane) == ZHb.leakLane) then
+                    fIb = fIb + 3
+                elseif ZHb.push and eIb.prog > ZHb.covEnd then
+                    fIb = fIb + 0.6
+                end
+            end
+            _Hb = _Hb + fIb
+        end
+    end
+    return _Hb
+end
+
+-- ===== source line 33136: Match.controlSpot =====
+function Match.controlSpot(PMb, QMb)
+    if not Match.killZone() then
+        return nil
+    end
+    local RMb = Simulator.holds
+    if not RMb(PMb.id) or Units.toggleOf(PMb.id) then
+        return nil
+    end
+    local SMb, TMb, UMb, VMb = 1, 0, 0, {
+    }
+    for WMb, XMb in ipairs(Match.mine or {
+    }) do
+        local YMb = XMb._stats
+        local ZMb = YMb.id.Value
+        if YMb:FindFirstChild("range") and not Units.isFarm(ZMb) and not Units.allyBuff(ZMb) then
+            local _Mb, aNb = Utils.flat(XMb:GetPivot().Position), YMb.range.Value
+            if RMb(ZMb) and not Units.toggleOf(ZMb) then
+                UMb = UMb + 1
+                table.insert(VMb, {
+                    p = _Mb,
+                    r = aNb
+                })
+            else
+                for bNb, cNb in ipairs(Match.samples) do
+                    if (Utils.flat(cNb.pos) - _Mb).Magnitude <= aNb then
+                        SMb, TMb = math.min(SMb, cNb.prog), math.max(TMb, cNb.prog)
+                    end
+                end
+            end
+        end
+    end
+    if TMb <= SMb then
+        SMb, TMb = 0.75, 0.98
+    end
+    local dNb = (QMb or UMb) + 1
+    local eNb = ({
+        SMb,
+        TMb,
+        (SMb + TMb) / 2,
+        SMb - (TMb - SMb) / 2
+    }) [dNb]
+    if not eNb then
+        return nil
+    end
+    local fNb = Units.range(PMb.u, 0) * ((Match.info and tonumber(Match.info.rangeScale)) or 1)
+    local gNb = {
+    }
+    for hNb, iNb in ipairs(Match.cands) do
+        local jNb, kNb, lNb = Utils.flat(iNb), 0, 0
+        for mNb, nNb in ipairs(Match.samples) do
+            if (Utils.flat(nNb.pos) - jNb).Magnitude <= fNb then
+                lNb = lNb + 1
+                if math.abs(nNb.prog - eNb) <= 0.05 then
+                    kNb = kNb + 1
+                    local oNb = Utils.flat(nNb.pos)
+                    for pNb, qNb in ipairs(VMb) do
+                        if (oNb - qNb.p).Magnitude <= qNb.r then
+                            kNb = kNb - 0.5
+                            break
+                        end
+                    end
+                end
+            end
+        end
+        if kNb > 0 then
+            table.insert(gNb, {
+                pos = iNb,
+                sc = kNb,
+                cov = lNb
+            })
+        end
+        if hNb % 60 == 0 then
+            task.wait()
+        end
+    end
+    table.sort(gNb, function(rNb, sNb)
+        return rNb.sc > sNb.sc
+    end)
+    for tNb, uNb in ipairs(gNb) do
+        local vNb = Match.valid(uNb.pos, PMb.data)
+        if vNb then
+            App.log(1, "PLACE", string.format("%s goes %s the kill box (%d%% of the road)", Units.name(PMb.id), Match.CONTROL_WORDS [dNb], math.floor(eNb * 100 + 0.5)))
+            return vNb, uNb.cov, eNb
+        end
+        if tNb % 20 == 0 then
+            task.wait()
+        end
+    end
+    return nil
+end
+
+-- ===== source line 33227: Match.holdSpot =====
+function Match.holdSpot(wNb)
+    local xNb, yNb = Simulator.holds(wNb.id)
+    if not xNb then
+        return nil
+    end
+    local zNb, ANb = {
+    }, 0
+    for BNb, CNb in ipairs(Match.mine or {
+    }) do
+        local DNb = CNb._stats
+        local ENb = DNb.id.Value
+        if DNb:FindFirstChild("range") and not Units.isFarm(ENb) and not Units.allyBuff(ENb) and ENb ~= wNb.id then
+            local FNb, GNb = pcall(Match.liveDps, CNb, ENb)
+            GNb = FNb and tonumber(GNb) or 0
+            if GNb > 0 then
+                table.insert(zNb, {
+                    p = Utils.flat(CNb:GetPivot().Position),
+                    r = DNb.range.Value,
+                    d = GNb
+                })
+                ANb = ANb + GNb
+            end
+        end
+    end
+    if # zNb == 0 or ANb <= 0 then
+        return nil
+    end
+    local HNb = {
+    }
+    for INb, JNb in ipairs(Match.samples) do
+        local KNb, LNb = Utils.flat(JNb.pos), 0
+        for MNb, NNb in ipairs(zNb) do
+            if (KNb - NNb.p).Magnitude <= NNb.r then
+                LNb = LNb + NNb.d
+            end
+        end
+        HNb [INb] = LNb / ANb
+    end
+    local ONb = Units.range(wNb.u, math.min(tonumber(yNb) or 0, 3, Units.rows(wNb.id).max)) * ((Match.info and tonumber(Match.info.rangeScale)) or 1)
+    local PNb, QNb, RNb
+    for SNb, TNb in ipairs(Match.cands) do
+        local UNb, VNb, WNb = Utils.flat(TNb), 0, 0
+        for XNb, YNb in ipairs(Match.samples) do
+            if (Utils.flat(YNb.pos) - UNb).Magnitude <= ONb then
+                VNb = VNb + HNb [XNb]
+                WNb = WNb + 1
+            end
+        end
+        if VNb > 0 and (not QNb or VNb > QNb) then
+            local ZNb = Match.valid(TNb, wNb.data)
+            if ZNb then
+                PNb, QNb, RNb = ZNb, VNb, WNb
+            end
+        end
+        if SNb % 40 == 0 then
+            task.wait()
+        end
+    end
+    if not PNb then
+        return nil
+    end
+    Match.holdSaid = Match.holdSaid or {
+    }
+    if not Match.holdSaid [wNb.id] then
+        Match.holdSaid [wNb.id] = true
+        App.log(1, "PLACE", string.format("%s holds enemies, so it stands where your attackers' damage is: what it holds stays under all of them", Units.name(wNb.id)))
+    end
+    return PNb, RNb or 0
+end
+
+-- ===== source line 33297: Match.bestSpot =====
 function Match.bestSpot(_Nb, aOb, bOb)
     if Match.focus and not aOb and not bOb and not Units.allyBuff(_Nb.id) then
         local cOb, dOb = Match.focusSpot(_Nb)
@@ -328,6 +723,7 @@ function Match.bestSpot(_Nb, aOb, bOb)
     return TPb, VPb or 0
 end
 
+-- ===== source line 33618: Match.lookAt =====
 function Match.lookAt(EQb)
     local FQb, GQb = math.huge, nil
     for HQb, IQb in ipairs(Match.samples) do
@@ -340,6 +736,7 @@ function Match.lookAt(EQb)
     return KQb.Magnitude > 0.01 and KQb.Unit or Vector3.new(0, 0, - 1)
 end
 
+-- ===== source line 33630: Match.place =====
 function Match.place(LQb, MQb)
     local NQb = Units.isFarm(LQb.id)
     local OQb, PQb = Match.bestSpot(LQb, NQb or (Match.random and Units.idol(LQb.id)), (Match.trainee ~= nil and LQb.uuid == Match.trainee) or Units.ENTRY [LQb.id] == true or (Match.studyEntry == true and LQb.id == Match.trialId))
@@ -406,6 +803,7 @@ function Match.place(LQb, MQb)
     return false
 end
 
+-- ===== source line 33696: Match.count =====
 function Match.count(WQb)
     local XQb = 0
     for YQb, ZQb in ipairs({
@@ -422,3 +820,4 @@ function Match.count(WQb)
         end
     end
     return XQb
+end
