@@ -39378,6 +39378,70 @@ function GUI.load()
     return result
 end
 
+-- Thai UI localisation and branding.
+GUI.LOGO_ASSET = "rbxassetid://78028716933387"
+GUI.TH = {
+    Home="หน้าหลัก", Farm="ฟาร์ม", Units="ยูนิต", Battle="ต่อสู้", Activity="กิจกรรม", Settings="ตั้งค่า",
+    Stages="ด่าน", Challenges="ชาเลนจ์", Events="อีเวนต์", Party="ปาร์ตี้", Rules="กฎการฟาร์ม",
+    Goals="เป้าหมาย", Upgrades="อัปเกรด", Summon="สุ่มยูนิต", Fusion="ฟิวชัน", Study="วิเคราะห์",
+    Controls="ควบคุม", Planner="วางแผนทีม", Economy="เศรษฐกิจ", Log="บันทึก", Spending="ประวัติการใช้จ่าย",
+    History="ประวัติ", Systems="ระบบ", General="ทั่วไป", Profiles="โปรไฟล์", Theme="ธีม", Updates="อัปเดต",
+    Overview="ภาพรวม", Details="รายละเอียด", Left="ซ้าย", Right="ขวา", Enabled="เปิดใช้งาน", Disabled="ปิดใช้งาน",
+    ["Only this mode"]="โหมดนี้เท่านั้น", ["Smart"]="อัจฉริยะ", ["Smart Play"]="เล่นอัจฉริยะ",
+    ["Farm control"]="ควบคุมฟาร์ม", ["Current run"]="รอบปัจจุบัน", ["Session"]="เซสชัน",
+    ["Automation status"]="สถานะระบบอัตโนมัติ", ["Mode selection"]="เลือกโหมด", ["Story & Legend"]="เนื้อเรื่องและตำนาน",
+    ["Infinite & Portals"]="อินฟินิตี้และพอร์ทัล", ["Raids & Dungeon"]="เรดและดันเจี้ยน",
+    ["Challenge rules"]="กฎชาเลนจ์", ["Find players"]="ค้นหาผู้เล่น", ["Skins & stars"]="สกินและดาว",
+    ["Event progress"]="ความคืบหน้าอีเวนต์", ["Mode ranking"]="จัดอันดับโหมด", ["Completed runs"]="รอบที่จบแล้ว",
+    ["Mode priorities"]="ลำดับความสำคัญของโหมด", ["Current goal"]="เป้าหมายปัจจุบัน", ["Ready to evolve"]="พร้อมวิวัฒนาการ",
+    ["Evolution paths"]="เส้นทางวิวัฒนาการ", ["Takedown training"]="ฝึกกำจัดศัตรู", ["Goal priorities"]="ลำดับเป้าหมาย",
+    ["Recommendations"]="คำแนะนำ", ["Team upgrades"]="อัปเกรดทีม", ["Core units"]="ยูนิตหลัก", ["XP food"]="อาหาร XP",
+    ["Relics & limit breaks"]="รีลิกและลิมิตเบรก", ["Upgrade rules"]="กฎการอัปเกรด", ["Banner snipe"]="สุ่มหาเป้าหมาย",
+    ["Repeat summons"]="สุ่มซ้ำ", ["Goal summons"]="สุ่มตามเป้าหมาย", ["Animations"]="แอนิเมชัน",
+    ["Limit break"]="ลิมิตเบรก", ["Fuse for XP"]="ฟิวส์เพื่อ XP", ["Battle automation"]="ระบบต่อสู้อัตโนมัติ",
+    ["Equipped units"]="ยูนิตที่ใส่อยู่", ["Team planning"]="วางแผนทีม", ["Farm income"]="รายได้ฟาร์ม",
+    ["Live log"]="บันทึกแบบสด", ["Subsystems"]="ระบบย่อย", ["Spending summary"]="สรุปการใช้จ่าย",
+    ["History tools"]="เครื่องมือประวัติ", ["Planner tools"]="เครื่องมือวางแผน", ["Daily challenge"]="ชาเลนจ์รายวัน",
+    ["Snipe budget"]="งบสุ่ม", ["Defense thresholds"]="เกณฑ์ป้องกัน", ["Logging"]="การบันทึก",
+    ["Script"]="สคริปต์", ["Gold shop"]="ร้านทอง", ["Study a unit"]="วิเคราะห์ยูนิต",
+    ["Saved profiles"]="โปรไฟล์ที่บันทึก", Appearance="รูปลักษณ์", ["No completed runs yet."]="ยังไม่มีรอบที่จบ",
+    ["Waiting for game data."]="กำลังรอข้อมูลจากเกม…", ["Nothing logged yet"]="ยังไม่มีบันทึก",
+    ["Return to lobby"]="กลับล็อบบี้", ["Resume after lobby hold"]="เริ่มฟาร์มต่อหลังพักที่ล็อบบี้",
+    ["Start Farming Again"]="เริ่มฟาร์มอีกครั้ง", ["Go To Lobby"]="ไปล็อบบี้", ["Unload"]="ปิดสคริปต์",
+    ["Reset Mode Stats"]="รีเซ็ตสถิติโหมด", ["Pick The Core Units Again"]="เลือกยูนิตหลักใหม่",
+    ["Simulate Now"]="จำลองตอนนี้", ["Equip Best Team"]="ใส่ทีมที่ดีที่สุด", ["Restore My Team"]="คืนทีมเดิม",
+    ["Reset Unit Learning"]="รีเซ็ตข้อมูลเรียนรู้ยูนิต", ["Start Study"]="เริ่มวิเคราะห์", ["Stop Study"]="หยุดวิเคราะห์",
+    ["Save Settings"]="บันทึกการตั้งค่า", ["Auto Farm"]="ฟาร์มอัตโนมัติ", ["Auto Play"]="เล่นอัตโนมัติ",
+    ["Story map"]="แผนที่เนื้อเรื่อง", ["Legend stage"]="ด่านตำนาน", ["Infinite map"]="แผนที่อินฟินิตี้",
+    ["Target evolution"]="วิวัฒนาการเป้าหมาย", ["Train takedowns"]="ฝึกกำจัดศัตรู", ["Automatic upgrades"]="อัปเกรดอัตโนมัติ",
+    ["Feed XP food"]="ใช้ยูนิตอาหารเพิ่ม XP", ["Buy XP food"]="ซื้ออาหาร XP", ["Target unit"]="ยูนิตเป้าหมาย",
+    ["Enable limit break"]="เปิดใช้ลิมิตเบรก", ["Unit to level"]="ยูนิตที่จะเพิ่มเลเวล", ["Maximum fodder rarity"]="ระดับความหายากอาหารสูงสุด",
+    ["Enable XP fusion"]="เปิดใช้ฟิวชัน XP", ["Equip planned team"]="ใส่ทีมตามแผน", ["Recalculate plan"]="คำนวณแผนใหม่",
+    ["Open Sunny Stars"]="เปิด Sunny Stars", ["Study runs"]="จำนวนรอบวิเคราะห์",
+    ["Search"]="ค้นหา", ["State"]="สถานะ", ["Wave progress"]="ความคืบหน้าคลื่น", ["Next run"]="รอบถัดไป",
+    ["Unavailable modes"]="โหมดที่ยังเล่นไม่ได้", ["Prediction"]="การคาดการณ์", ["Requirements"]="เงื่อนไข",
+}
+function GUI.t(value)
+    local text = tostring(value or "")
+    return GUI.TH[text] or text
+end
+function GUI.applyBoldFont(window)
+    local root = window and window.Root
+    if not root then return end
+    local function apply(node)
+        if node:IsA("TextLabel") or node:IsA("TextButton") or node:IsA("TextBox") then
+            pcall(function() node.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal) end)
+            pcall(function() node.Font = Enum.Font.GothamBold end)
+        end
+        for _, child in ipairs(node:GetChildren()) do apply(child) end
+    end
+    task.defer(function() apply(root) end)
+    if not GUI._boldConnection then
+        GUI._boldConnection = root.DescendantAdded:Connect(function(node)
+            task.defer(function() apply(node) end)
+        end)
+    end
+end
 function GUI.escape(value)
     return (tostring(value or ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
 end
@@ -39594,15 +39658,15 @@ GUI.PAGE_HELP = {
 function GUI.prepareNavigation(window)
     GUI.Nav, GUI.Blocks = {}, {}
     for _, section in ipairs(GUI.NAV_SCHEMA) do
-        local root = window:CreateTab({ Name = section.Name, Icon = section.Icon })
+        local root = window:CreateTab({ Name = GUI.t(section.Name), Icon = section.Icon })
         local entry = { Root = root, Pages = {} }
         GUI.Nav[section.Name] = entry
         if section.Pages then
             for _, spec in ipairs(section.Pages) do
                 entry.Pages[spec[1]] = root:CreateSubTab({
-                    Name = spec[1], Icon = spec[2],
+                    Name = GUI.t(spec[1]), Icon = spec[2],
                     EmptyText = section.Name == "Farm" and spec[1] == "Events"
-                        and "No supported event is currently available." or "Waiting for game data.",
+                        and GUI.t("No supported event is currently available.") or GUI.t("Waiting for game data."),
                 })
             end
         else
@@ -39618,7 +39682,7 @@ function GUI.block(rootName, pageName, title, side, collapsed)
     if GUI.Blocks[id] then return GUI.Blocks[id] end
     local entry = assert(GUI.Nav[rootName], "Unknown navigation section: " .. rootName)
     local host = assert(entry.Pages[pageName], "Unknown page: " .. pageName)
-    local group = host:CreateGroupbox({ Name = title, Side = side or "Left", Collapsed = collapsed == true })
+    local group = host:CreateGroupbox({ Name = GUI.t(title), Side = side or "Left", Collapsed = collapsed == true })
     GUI.Blocks[id] = group
     return group
 end
@@ -39643,7 +39707,7 @@ function GUI.controlText(name, description)
     local entry = GUI.SHORT_TEXT[name]
     local short = entry and entry[2] or description or ""
     if #short > 82 then short = "" end
-    return entry and entry[1] or name, short
+    return GUI.t(entry and entry[1] or name), GUI.t(short)
 end
 
 function GUI.controlDependency(name)
@@ -39703,7 +39767,7 @@ end
 function GUI.paragraph(group, text, title)
     local native
     if title and title ~= "" then
-        native = group:CreateParagraph({ Title = GUI.escape(title), Content = GUI.escape(text) })
+        native = group:CreateParagraph({ Title = GUI.escape(GUI.t(title)), Content = GUI.escape(GUI.t(text)) })
     else
         native = group:CreateLabel({ Text = GUI.escape(text), Visible = text ~= nil and text ~= "" })
     end
@@ -40064,7 +40128,7 @@ end
 function GUI.window(Airflow)
     local window = Airflow:CreateWindow({
         Name = GUI.TITLE, LoadingSubtitle = GUI.TITLE .. " · v" .. VERSION,
-        Icon = "rbxassetid://78028716933387", LogoIcon = "rbxassetid://78028716933387",
+        Icon = GUI.LOGO_ASSET, Logo = GUI.LOGO_ASSET,
         ToggleUIKeybind = "RightControl", Size = UDim2.fromOffset(900, 620), AdaptiveSize = true, Density = "Default",
         Backdrop = { Weather = "Fireflies", Tint = 0.35 }, Theme = GUI.THEME,
         ConfigurationSaving = { Enabled = true, FolderName = Core.FOLDER .. "/Airflow" },
@@ -40072,6 +40136,7 @@ function GUI.window(Airflow)
     })
     GUI.NativeWindow = window
     GUI.prepareNavigation(window)
+    GUI.applyBoldFont(window)
     GUI.skipInfo = GUI.paragraph(GUI.block("Farm", "Rules", "Unavailable modes", "Right"), "Waiting for the first plan.")
     local controller = { Native = window }
     function controller:Tab(_, name)
@@ -40092,7 +40157,7 @@ function GUI.window(Airflow)
     end
     function controller:Notify(title, text, duration, tone)
         local tones = { success = "Success", warning = "Warning", error = "Error", default = "Info" }
-        return window:Notify({ Title = GUI.escape(title), Content = GUI.escape(text), Duration = duration or 4, Type = tones[tone] or "Info" })
+        return window:Notify({ Title = GUI.escape(GUI.t(title)), Content = GUI.escape(GUI.t(text)), Duration = duration or 4, Type = tones[tone] or "Info" })
     end
     function controller:Destroy()
         -- Airflow turns live toggles off during Destroy. Silence that UI teardown
@@ -40113,7 +40178,7 @@ end
 
 function GUI.activity(page)
     GUI.activityLog = page:Group():CreateLog({
-        Name = "Activity", MaxEntries = 250, MaxRows = 14,
+        Name = GUI.t("Activity"), MaxEntries = 250, MaxRows = 14,
         Timestamps = false, EmptyText = "Nothing logged yet",
     })
     for _, line in ipairs(LogBuffer.lines) do GUI.activityLog:Push(GUI.escape(line)) end
