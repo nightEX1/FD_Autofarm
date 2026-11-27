@@ -1350,6 +1350,13 @@ local function sourceSpotBonus(pos, range, ctx, farm)
     if ctx.layout == 1 then bonus += early * 0.9 end
     -- Match.killZone: stack จุดยิงช่วงท้ายถนนและช่วงที่มีศัตรูหนาแน่น
     if ctx.layout == 3 or ctx.boss then bonus += late * 1.25 + danger * 0.7 end
+    if ctx.plan == "mid" then
+        -- Mystic ดาเมจตัวแรกตั้งกลางทางเพื่อให้ครอบคลุมช่วงต้นและช่วงกลาง
+        bonus += math.max(0, covered - math.abs((late - early) - covered * 0.1) * 0.1)
+    elseif ctx.plan == "late" then
+        -- หลังมี core แล้ว ตัวซ้ำและบัพให้กองช่วงท้ายเป็นหลัก
+        bonus += late * 1.8
+    end
     -- Match.controlSpot / Match.holdSpot: ถ้ามีศัตรูอยู่ ให้ย้ายจุดไปช่วงหน้าหัวแถว
     if front > 0 then
         local nearFront = math.max(0, 1 - math.abs((late > 0 and 0.8 or 0) - front) * 2)
@@ -1377,6 +1384,20 @@ local function isSupportUnit(data)
     local up = type(data.upgrade) == "table" and data.upgrade[#data.upgrade] or nil
     local dmg = tonumber(up and up.damage) or tonumber(data.damage) or 0
     return dmg <= 0
+end
+
+local function isMysticDamage(id, data)
+    local rarity = tostring(data and data.rarity or ""):lower()
+    return (rarity == "mythic" or rarity == "mystic") and not isFarm(id) and not isSupportUnit(data)
+end
+
+local function nearestRoadProgress(pos)
+    local best, dist = 0, math.huge
+    for _, s in ipairs(Place.samples) do
+        local d = (flat(s.pos) - flat(pos)).Magnitude
+        if d < dist then dist, best = d, s.prog end
+    end
+    return best
 end
 
 -- Match.bestSpot: หาจุดวางที่ดีที่สุดของยูนิตหนึ่งตัว
@@ -1424,14 +1445,23 @@ local function bestSpot(unit, mine, ctx)
     -- ช่วงเร่งเติมสนามยังคงตรวจ validSpot และ refused ตามปกติ แต่ไม่เสียเวลา
     -- คำนวณคะแนนทุกจุด เพราะเป้าหมายตอนนี้คือขึ้นจำนวนตัวให้ทันเวฟแรก
     if ctx and ctx.fastFill and not support then
+        local target = ctx.plan == "mid" and 0.5 or (ctx.plan == "late" and 0.85 or nil)
+        local fallback, fallbackScore
         for ci, c in ipairs(Place.cands) do
             local pos = validSpot(c, unit.data, mine)
             if pos then
                 local score = scoreList(candCover(ci, pos, range), cov, wmul)
-                Place.spotCache[unit.uuid] = { n = #mine, t = os.clock(), pos = pos, score = score, mode = mode }
-                return pos, score
+                if not fallback then fallback, fallbackScore = pos, score end
+                if not target or math.abs(nearestRoadProgress(pos) - target) <= 0.22 then
+                    Place.spotCache[unit.uuid] = { n = #mine, t = os.clock(), pos = pos, score = score, mode = mode }
+                    return pos, score
+                end
             end
             if ci % 40 == 0 then task.wait() end
+        end
+        if fallback then
+            Place.spotCache[unit.uuid] = { n = #mine, t = os.clock(), pos = fallback, score = fallbackScore, mode = mode }
+            return fallback, fallbackScore
         end
         Place.spotCache[unit.uuid] = { n = #mine, t = os.clock(), pos = nil, mode = mode }
         return nil
@@ -1450,6 +1480,10 @@ local function bestSpot(unit, mine, ctx)
                 local fp = flat(pos)
                 for _, a in ipairs(attackers) do
                     if (a.p - fp).Magnitude <= range then score += a.dps end
+                end
+                if ctx and ctx.plan == "late" then
+                    -- บัพต้องไปอยู่ท้ายทางร่วมกับกลุ่ม Mystic/damage ไม่แย่งจุดกลาง
+                    score += nearestRoadProgress(pos) * 100
                 end
             else
                 score = scoreList(candCover(ci, pos, range), cov, wmul)
@@ -1703,6 +1737,26 @@ function Economy.snapshot()
             countsByUuid[uu.Value] = (countsByUuid[uu.Value] or 0) + 1
         end
     end
+    -- แผนวางแบบเร่งตามที่กำหนด: เงินก่อน -> Mystic ดาเมจกลางทาง -> ตัวอื่นท้ายทาง
+    local plan, moneyPending, hasCore = "late", false, false
+    for _, unit in ipairs(equippedUnits()) do
+        local data = Game.Units and Game.Units[unit.id]
+        local placedCount = countsByUuid[unit.uuid] or 0
+        if data then
+            if isMoneyPriorityUnit(unit.id, data) and placedCount == 0
+                and cash >= (tonumber(data.cost) or math.huge) then
+                moneyPending = true
+            end
+            if placedCount > 0 and isMysticDamage(unit.id, data) then
+                hasCore = true
+            end
+        end
+    end
+    if moneyPending then
+        plan = "money"
+    elseif not hasCore then
+        plan = "mid"
+    end
     local em = enemyModel()
     -- ความกดดัน: ความคืบหน้าด่าน + จำนวนศัตรู + ศัตรูที่ใกล้ถึงปลายทาง + ตำแหน่งหัวแถว
     local stage = math.clamp(w / total, 0, 1)
@@ -1765,13 +1819,13 @@ function Economy.snapshot()
         wmul[i] = wv
     end
     local fastFill = ECON.FAST_FILL and #mine < ECON.FILL_TARGET
-    local mode = tostring(layout) .. (deepen and "d" or "") .. (guardNeed and "g" or "") .. (leak and "l" or "") .. (boss and "b" or "") .. (fastFill and "f" or "")
+    local mode = tostring(layout) .. ":" .. plan .. (deepen and "d" or "") .. (guardNeed and "g" or "") .. (leak and "l" or "") .. (boss and "b" or "") .. (fastFill and "f" or "")
 
     return {
         cash = cash, wave = w, total = total, left = left,
         pressure = pressure, threat = 1 + 2 * pressure, enemies = em,
         reach = reach, guards = guards, deepen = deepen, leak = leak, guardNeed = guardNeed, boss = boss, danger = danger,
-        wmul = wmul, mode = mode, layout = layout, fastFill = fastFill,
+        wmul = wmul, mode = mode, layout = layout, plan = plan, fastFill = fastFill,
         mine = mine, byUuid = byUuid, cov = cov, dens = em.dens,
         fieldFull = #mine >= FIELD_MAX or (Place.cap ~= nil and #mine >= Place.cap),
         countsByUuid = countsByUuid,
@@ -1964,6 +2018,18 @@ function Economy.options(ctx)
     for _, o in ipairs(opts) do
         o.value = (o.value or 0) * prioMul(o.unit.id, o.data)
         if o.kind == "place" then
+            if ctx.plan == "money" then
+                if isMoneyPriorityUnit(o.unit.id, o.data) then
+                    o.value *= 100 -- ตัวทำเงินต้องมาก่อน action อื่นที่ซื้อได้
+                else
+                    o.value *= 0.08
+                end
+            elseif ctx.plan == "mid" then
+                if isMysticDamage(o.unit.id, o.data) then o.value *= 12 end
+            elseif ctx.plan == "late" and not isFarm(o.unit.id) then
+                -- หลังมีตัวทำเงินและ core แล้ว เติม damage/buff สำเนาท้ายทางต่อ
+                o.value *= 3
+            end
             -- ช่วงต้นด่านต้องเติมสำเนาลงสนามก่อน ไม่ปล่อยให้อัปเกรดตัวเดียวจนแพ้
             if #ctx.mine < ECON.FILL_TARGET then
                 local missing = (ECON.FILL_TARGET - #ctx.mine) / ECON.FILL_TARGET
