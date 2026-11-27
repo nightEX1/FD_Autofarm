@@ -40279,7 +40279,6 @@ function GUI.window(Airflow)
         Home = false,
     })
     GUI.NativeWindow = window
-    task.spawn(function() pcall(GUI.brand) end)
     GUI.prepareNavigation(window)
     GUI.skipInfo = GUI.paragraph(GUI.block("Farm", "Rules", "Unavailable modes", "Right"), "Waiting for the first plan.")
     local controller = { Native = window }
@@ -40287,7 +40286,7 @@ function GUI.window(Airflow)
         local page = GUI.page(window, name)
         if name == "Home" then
             self.State = page:Group():CreateStatus({
-                Name = "Farm", Value = "Starting…", Style = "Dot", Pin = true, Tone = "Accent",
+                Name = "DKHUB AA", Value = "Starting…", Style = "Dot", Pin = true, Tone = "Accent",
             })
             GUI.shortcuts()
         end
@@ -40782,7 +40781,7 @@ function GUI.modeOptions(Gnc)
     end
     return Hnc
 end
-GUI.TITLE = "DKHUB - Anime Adventures"
+GUI.TITLE = "DKHUB AA"
 
 function GUI.lbTargetOptions()
     local Zoc = {
