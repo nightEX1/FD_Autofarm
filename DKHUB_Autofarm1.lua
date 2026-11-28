@@ -1348,14 +1348,14 @@ local function sourceSpotBonus(pos, range, ctx, farm)
 
     -- Match.style == fast: คุมช่วงต้นถนนเพื่อเก็บศัตรูตั้งแต่ทางเข้า
     if ctx.layout == 1 then bonus += early * 0.9 end
-    -- Match.killZone: stack จุดยิงช่วงท้ายถนนและช่วงที่มีศัตรูหนาแน่น
-    if ctx.layout == 3 or ctx.boss then bonus += late * 1.25 + danger * 0.7 end
+    -- kill-zone ของไฟล์นี้ต้องอยู่ด้านหลัง/ถอยจากฐาน ไม่ใช่จุดที่ชิดหน้าฐาน
+    if ctx.layout == 3 or ctx.boss then bonus += early * 1.25 + danger * 0.7 end
     if ctx.plan == "mid" then
         -- Mystic ดาเมจตัวแรกตั้งกลางทางเพื่อให้ครอบคลุมช่วงต้นและช่วงกลาง
         bonus += math.max(0, covered - math.abs((late - early) - covered * 0.1) * 0.1)
     elseif ctx.plan == "late" then
-        -- หลังมี core แล้ว ตัวซ้ำและบัพให้กองช่วงท้ายเป็นหลัก
-        bonus += late * 1.8
+        -- หลังมี core แล้ว ตัวซ้ำและบัพให้อยู่ถอยจากหน้าฐานเป็นหลัก
+        bonus += early * 1.8
     end
     -- Match.controlSpot / Match.holdSpot: ถ้ามีศัตรูอยู่ ให้ย้ายจุดไปช่วงหน้าหัวแถว
     if front > 0 then
@@ -1398,6 +1398,12 @@ local function nearestRoadProgress(pos)
         if d < dist then dist, best = d, s.prog end
     end
     return best
+end
+
+-- ในเกมนี้ค่า prog สูงอยู่ใกล้หน้าฐานมากกว่า ดังนั้นโหมด late/kill-zone
+-- ต้องใช้ค่ากลับด้านเพื่อวางถอยออกจากฐาน ไม่ให้ยูนิตกองชิดหน้าฐาน
+local function backFromBaseProgress(pos)
+    return 1 - nearestRoadProgress(pos)
 end
 
 -- Match.bestSpot: หาจุดวางที่ดีที่สุดของยูนิตหนึ่งตัว
@@ -1478,19 +1484,19 @@ local function sourceBestSpot(unit, mine, ctx)
                 for _, a in ipairs(attackers) do
                     if (a.p - fp).Magnitude <= range then v += a.dps end
                 end
-                if ctx.plan == "late" then v += nearestRoadProgress(p) * 100 end
+                if ctx.plan == "late" then v += backFromBaseProgress(p) * 100 end
                 return v > 0 and v or nil
             end)
             if pos then return remember(pos, score) end
         end
     end
 
-    -- src kill-zone: stack damage in the last stretch once the core is ready
+    -- src kill-zone: stack damage behind the base-facing line once the core is ready
     if not farm and ctx and ctx.plan == "late" then
         local pos, score = sourcePickSpot(unit, mine, ctx, function(p, ci)
-            local prog = nearestRoadProgress(p)
+            local back = backFromBaseProgress(p)
             local cover = scoreList(candCover(ci, p, range), cov, wmul)
-            return cover + prog * 80 + (prog >= 0.7 and 30 or 0)
+            return cover + back * 80 + (back >= 0.7 and 30 or 0)
         end)
         if pos then return remember(pos, score) end
     end
